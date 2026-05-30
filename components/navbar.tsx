@@ -6,7 +6,7 @@ import { Menu, X, ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 const navLinks = [
   { label: "Home", href: "#home" },
-  { label: "Programs", href: "#programs", children: [{ label: "KumDo", href: "#kumdo" }, { label: "Hapkido", href: "#hapkido" }, { label: "Tai Chi", href: "#taichi" }] },
+  { label: "Programs", href: "#programs", children: [{ label: "Taekwondo", href: "#taekwondo" }, { label: "Hapkido", href: "#hapkido" }, { label: "Tai Chi", href: "#taichi" }, { label: "Self Defense", href: "#seminars" }, { label: "KumDo", href: "#kumdo" }] },
   { label: "About", href: "#about" },
   { label: "Contact", href: "#contact" },
 ];
