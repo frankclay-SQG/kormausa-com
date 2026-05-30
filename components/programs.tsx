@@ -2,14 +2,25 @@
 import Image from "next/image";
 import Link from "next/link";
 import { motion } from "framer-motion";
+import type { Variants } from "framer-motion";
 import { ArrowRight } from "lucide-react";
+
 const programs = [
   { id: "kumdo", title: "KumDo", korean: "검도", tagline: "The Way of the Sword", description: "KumDo is the Korean art of sword fighting, emphasizing precision, mental discipline, and the mastery of form. Students develop focus, coordination, and a profound respect for the blade — from basic bokken practice to advanced forms.", image: "https://galaxy-prod.tlcdn.com/gen/user_34hHhppb2NuRvdy5opEyFBssEv2/28ae471e-467d-4a88-8d63-b3980260296c.jpg", highlights: ["Bokken & Shinai training", "Traditional forms (kata)", "Competition preparation", "All ages welcome"], accent: "#C9A22A" },
   { id: "hapkido", title: "Hapkido", korean: "합기도", tagline: "The Way of Coordinated Power", description: "Hapkido is a dynamic self-defense art combining joint locks, throws, kicks, and strikes. Practitioners learn to redirect an opponent's force with minimal effort — making it effective for all body types and fitness levels.", image: "https://galaxy-prod.tlcdn.com/gen/user_34hHhppb2NuRvdy5opEyFBssEv2/35e98587-2487-4934-bfe0-b047025ff5cc.jpg", highlights: ["Joint locks & throws", "Self-defense applications", "Kick & strike combinations", "Black dobok curriculum"], accent: "#C8102E" },
   { id: "taichi", title: "Tai Chi", korean: "태극권", tagline: "The Supreme Ultimate Art", description: "Tai Chi combines slow, flowing movements with deep breathing and meditation to cultivate internal energy (chi). Known for its health benefits, it reduces stress, improves balance, and enhances overall wellbeing for practitioners of any age.", image: "https://galaxy-prod.tlcdn.com/gen/user_34hHhppb2NuRvdy5opEyFBssEv2/2c3c6648-51fa-41a1-9d4e-7640657d9224.jpg", highlights: ["Yang-style forms", "Breathing & meditation", "Balance & flexibility", "Senior-friendly classes"], accent: "#C9A22A" },
 ];
-const containerVariants = { hidden: {}, visible: { transition: { staggerChildren: 0.15 } } };
-const cardVariants = { hidden: { opacity: 0, y: 30 }, visible: { opacity: 1, y: 0, transition: { duration: 0.6, ease: "easeOut" } } };
+
+const containerVariants: Variants = {
+  hidden: {},
+  visible: { transition: { staggerChildren: 0.15 } },
+};
+
+const cardVariants: Variants = {
+  hidden: { opacity: 0, y: 30 },
+  visible: { opacity: 1, y: 0, transition: { duration: 0.6 } },
+};
+
 export function Programs() {
   return (
     <section id="programs" className="bg-korma-dark py-24 sm:py-32">
