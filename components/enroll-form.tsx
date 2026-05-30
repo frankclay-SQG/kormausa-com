@@ -17,6 +17,8 @@ import {
   CheckCircle,
   MessageSquare,
   ArrowRight,
+  Tag,
+  X,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -159,6 +161,15 @@ function StepIndicator({ step }: { step: number }) {
   );
 }
 
+// ── Discount types ────────────────────────────────────────────────────────
+
+interface AppliedDiscount {
+  promotionCodeId: string;
+  percentOff: number | null;
+  amountOff: number | null; // in cents
+  name: string;
+}
+
 // ── Main component ────────────────────────────────────────────────────────
 
 export function EnrollForm() {
@@ -177,6 +188,14 @@ export function EnrollForm() {
     null | { type: "free"; meetingUrl: string } | { type: "quote" }
   >(null);
 
+  // ── Discount state ────────────────────────────────────────────────────
+  const [showDiscountInput, setShowDiscountInput] = useState(false);
+  const [discountCode, setDiscountCode] = useState("");
+  const [discountStatus, setDiscountStatus] = useState<
+    "idle" | "checking" | "valid" | "invalid"
+  >("idle");
+  const [appliedDiscount, setAppliedDiscount] = useState<AppliedDiscount | null>(null);
+
   const canGoStep2 = !!selectedProgram;
   const canGoStep3 =
     form.name.trim().length > 1 &&
@@ -187,16 +206,78 @@ export function EnrollForm() {
     setForm((f) => ({ ...f, [key]: value }));
   }
 
-  const seminarQty = Math.max(1, parseInt(form.participants || "1", 10));
-  const seminarTotal = ((7500 * seminarQty) / 100).toFixed(2);
-
-  function totalDisplay() {
-    if (!selectedProgram) return "";
-    if (selectedProgram.id === "seminar-individual") return `$${seminarTotal}`;
-    if (selectedProgram.price === 0) return selectedProgram.priceLabel;
-    return `$${(selectedProgram.price / 100).toFixed(2)}`;
+  function changeProgram(prog: Program) {
+    setSelectedProgram(prog);
+    // Reset discount when program changes
+    setAppliedDiscount(null);
+    setDiscountCode("");
+    setDiscountStatus("idle");
+    setShowDiscountInput(false);
   }
 
+  const seminarQty = Math.max(1, parseInt(form.participants || "1", 10));
+
+  /** Base price in cents for the current selection */
+  function basePriceCents(): number {
+    if (!selectedProgram) return 0;
+    if (selectedProgram.id === "seminar-individual") return 7500 * seminarQty;
+    return selectedProgram.price;
+  }
+
+  /** Final price after discount in cents */
+  function finalPriceCents(): number {
+    const base = basePriceCents();
+    if (!appliedDiscount) return base;
+    if (appliedDiscount.percentOff !== null) {
+      return Math.round(base * (1 - appliedDiscount.percentOff / 100));
+    }
+    if (appliedDiscount.amountOff !== null) {
+      return Math.max(0, base - appliedDiscount.amountOff);
+    }
+    return base;
+  }
+
+  function discountAmountCents(): number {
+    return basePriceCents() - finalPriceCents();
+  }
+
+  function fmt(cents: number) {
+    return `$${(cents / 100).toFixed(2)}`;
+  }
+
+  // ── Apply discount code ───────────────────────────────────────────────
+  async function applyDiscountCode() {
+    if (!discountCode.trim()) return;
+    setDiscountStatus("checking");
+    setAppliedDiscount(null);
+
+    try {
+      const res = await fetch("/api/enroll/validate-discount", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ code: discountCode }),
+      });
+      const data = await res.json();
+
+      if (data.valid) {
+        setAppliedDiscount(data);
+        setDiscountStatus("valid");
+      } else {
+        setDiscountStatus("invalid");
+      }
+    } catch {
+      setDiscountStatus("invalid");
+    }
+  }
+
+  function removeDiscount() {
+    setAppliedDiscount(null);
+    setDiscountCode("");
+    setDiscountStatus("idle");
+    setShowDiscountInput(false);
+  }
+
+  // ── Submit ────────────────────────────────────────────────────────────
   async function handleSubmit() {
     if (!selectedProgram) return;
     setIsSubmitting(true);
@@ -217,6 +298,7 @@ export function EnrollForm() {
           phone: form.phone,
           participants: form.participants,
           message: form.message,
+          promotionCodeId: appliedDiscount?.promotionCodeId ?? null,
         }),
       });
 
@@ -342,7 +424,7 @@ export function EnrollForm() {
                   return (
                     <button
                       key={prog.id}
-                      onClick={() => setSelectedProgram(prog)}
+                      onClick={() => changeProgram(prog)}
                       className={cn(
                         "relative text-left p-5 border rounded-sm transition-all duration-200 group",
                         isSelected
@@ -494,7 +576,7 @@ export function EnrollForm() {
                         className="w-full bg-white/5 border border-white/15 text-white placeholder:text-white/25 px-4 py-3 text-sm focus:outline-none focus:border-korma-gold/60 transition-colors"
                       />
                       <p className="text-white/30 text-xs mt-1.5">
-                        Total: ${seminarTotal} ({seminarQty} × $75.00)
+                        Total: ${(7500 * seminarQty / 100).toFixed(2)} ({seminarQty} × $75.00)
                       </p>
                     </motion.div>
                   )}
@@ -553,11 +635,12 @@ export function EnrollForm() {
             >
               <div className="max-w-md mx-auto">
                 {/* Order summary card */}
-                <div className="border border-white/10 bg-white/[0.02] p-6 mb-6">
+                <div className="border border-white/10 bg-white/[0.02] p-6 mb-5">
                   <h3 className="text-white/50 text-xs uppercase tracking-wider mb-4">
                     Order Summary
                   </h3>
 
+                  {/* Program row */}
                   <div className="flex items-start gap-3 pb-4 border-b border-white/8">
                     <selectedProgram.Icon className="h-5 w-5 text-korma-gold mt-0.5 flex-shrink-0" />
                     <div className="flex-1 min-w-0">
@@ -571,16 +654,18 @@ export function EnrollForm() {
                     </div>
                   </div>
 
+                  {/* Quantity row (seminars) */}
                   {selectedProgram.id === "seminar-individual" && (
                     <div className="flex justify-between text-sm py-2 border-b border-white/8">
                       <span className="text-white/50">
                         {seminarQty} person{seminarQty !== 1 ? "s" : ""} × $75.00
                       </span>
-                      <span className="text-white/80">${seminarTotal}</span>
+                      <span className="text-white/80">{fmt(7500 * seminarQty)}</span>
                     </div>
                   )}
 
-                  <div className="pt-3 space-y-2">
+                  {/* Participant info */}
+                  <div className="pt-3 space-y-2 border-b border-white/8 pb-3">
                     <div className="flex justify-between text-xs">
                       <span className="text-white/40">Name</span>
                       <span className="text-white/70">{form.name}</span>
@@ -595,13 +680,139 @@ export function EnrollForm() {
                     </div>
                   </div>
 
+                  {/* Discount row */}
+                  {appliedDiscount && selectedProgram.price > 0 && (
+                    <div className="flex justify-between text-sm py-2 border-b border-white/8">
+                      <span className="text-green-400 flex items-center gap-1.5">
+                        <Tag className="h-3.5 w-3.5" />
+                        {appliedDiscount.name}
+                        {appliedDiscount.percentOff !== null && ` (${appliedDiscount.percentOff}% off)`}
+                      </span>
+                      <span className="text-green-400">−{fmt(discountAmountCents())}</span>
+                    </div>
+                  )}
+
+                  {/* Total */}
                   {selectedProgram.price > 0 && (
-                    <div className="mt-4 pt-4 border-t border-white/8 flex justify-between">
+                    <div className="mt-3 flex justify-between items-baseline">
                       <span className="text-white/50 text-sm font-medium">Total</span>
-                      <span className="text-white font-bold">{totalDisplay()}</span>
+                      <div className="text-right">
+                        {appliedDiscount && (
+                          <div className="text-white/30 text-xs line-through">
+                            {fmt(basePriceCents())}
+                          </div>
+                        )}
+                        <span className="text-white font-bold text-lg">
+                          {fmt(finalPriceCents())}
+                        </span>
+                      </div>
                     </div>
                   )}
                 </div>
+
+                {/* ── Discount code input (paid programs only) ──── */}
+                {selectedProgram.type === "payment" && (
+                  <div className="mb-5">
+                    {/* Applied badge */}
+                    <AnimatePresence>
+                      {appliedDiscount ? (
+                        <motion.div
+                          initial={{ opacity: 0, y: -4 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          exit={{ opacity: 0, y: -4 }}
+                          className="flex items-center justify-between px-4 py-2.5 bg-green-900/20 border border-green-500/30 rounded"
+                        >
+                          <div className="flex items-center gap-2 text-green-400 text-sm">
+                            <Tag className="h-4 w-4" />
+                            <span className="font-medium">{appliedDiscount.name}</span>
+                            <span className="text-green-400/70">
+                              {appliedDiscount.percentOff !== null
+                                ? `${appliedDiscount.percentOff}% off`
+                                : `${fmt(appliedDiscount.amountOff ?? 0)} off`}
+                            </span>
+                          </div>
+                          <button
+                            onClick={removeDiscount}
+                            className="text-green-400/50 hover:text-green-400 transition-colors"
+                          >
+                            <X className="h-4 w-4" />
+                          </button>
+                        </motion.div>
+                      ) : showDiscountInput ? (
+                        <motion.div
+                          initial={{ opacity: 0, height: 0 }}
+                          animate={{ opacity: 1, height: "auto" }}
+                          exit={{ opacity: 0, height: 0 }}
+                          transition={{ duration: 0.2 }}
+                        >
+                          <div className="flex gap-2">
+                            <input
+                              type="text"
+                              value={discountCode}
+                              onChange={(e) => {
+                                setDiscountCode(e.target.value.toUpperCase());
+                                if (discountStatus !== "idle") setDiscountStatus("idle");
+                              }}
+                              onKeyDown={(e) => e.key === "Enter" && applyDiscountCode()}
+                              placeholder="DISCOUNT CODE"
+                              className="flex-1 bg-white/5 border border-white/15 text-white placeholder:text-white/20 px-4 py-2.5 text-sm font-mono tracking-widest focus:outline-none focus:border-korma-gold/60 transition-colors uppercase"
+                            />
+                            <button
+                              onClick={applyDiscountCode}
+                              disabled={discountStatus === "checking" || !discountCode.trim()}
+                              className={cn(
+                                "px-4 py-2.5 text-xs font-bold uppercase tracking-wider transition-all flex-shrink-0",
+                                discountStatus === "checking"
+                                  ? "bg-white/10 text-white/30 cursor-not-allowed"
+                                  : "bg-korma-gold/20 text-korma-gold border border-korma-gold/30 hover:bg-korma-gold/30"
+                              )}
+                            >
+                              {discountStatus === "checking" ? (
+                                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                              ) : (
+                                "Apply"
+                              )}
+                            </button>
+                          </div>
+
+                          <AnimatePresence>
+                            {discountStatus === "invalid" && (
+                              <motion.p
+                                initial={{ opacity: 0 }}
+                                animate={{ opacity: 1 }}
+                                exit={{ opacity: 0 }}
+                                className="text-red-400 text-xs mt-1.5"
+                              >
+                                Invalid or expired code. Please try again.
+                              </motion.p>
+                            )}
+                          </AnimatePresence>
+
+                          <button
+                            onClick={() => {
+                              setShowDiscountInput(false);
+                              setDiscountCode("");
+                              setDiscountStatus("idle");
+                            }}
+                            className="text-white/25 text-xs mt-1.5 hover:text-white/50 transition-colors"
+                          >
+                            Cancel
+                          </button>
+                        </motion.div>
+                      ) : (
+                        <motion.button
+                          initial={{ opacity: 0 }}
+                          animate={{ opacity: 1 }}
+                          onClick={() => setShowDiscountInput(true)}
+                          className="flex items-center gap-1.5 text-white/35 text-xs hover:text-korma-gold transition-colors"
+                        >
+                          <Tag className="h-3.5 w-3.5" />
+                          Have a discount code?
+                        </motion.button>
+                      )}
+                    </AnimatePresence>
+                  </div>
+                )}
 
                 {/* Error */}
                 <AnimatePresence>
@@ -643,7 +854,7 @@ export function EnrollForm() {
                   ) : selectedProgram.type === "payment" ? (
                     <>
                       <CreditCard className="h-4 w-4" />
-                      Pay {totalDisplay()}
+                      Pay {fmt(finalPriceCents())}
                     </>
                   ) : selectedProgram.type === "free" ? (
                     <>

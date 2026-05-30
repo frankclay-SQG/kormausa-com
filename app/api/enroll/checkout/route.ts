@@ -25,6 +25,7 @@ export async function POST(req: NextRequest) {
     phone,
     participants,
     message,
+    promotionCodeId,   // ← optional: validated Stripe promo code ID
   }: {
     programId: string;
     programLabel: string;
@@ -36,6 +37,7 @@ export async function POST(req: NextRequest) {
     phone: string;
     participants: string;
     message: string;
+    promotionCodeId?: string | null;
   } = body;
 
   const headers = {
@@ -146,6 +148,13 @@ export async function POST(req: NextRequest) {
   stripeParams.append("metadata[hubspot_contact_id]", contactId);
   stripeParams.append("metadata[program_id]", programId);
   stripeParams.append("metadata[inquiry_type]", inquiryType);
+
+  // Apply promo code if provided; otherwise allow Stripe to show a code field
+  if (promotionCodeId) {
+    stripeParams.append("discounts[0][promotion_code]", promotionCodeId);
+  } else {
+    stripeParams.append("allow_promotion_codes", "true");
+  }
 
   const stripeRes = await fetch(`${STRIPE_BASE}/checkout/sessions`, {
     method: "POST",
