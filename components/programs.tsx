@@ -28,7 +28,7 @@ export function Programs() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6">
         <div className="text-center mb-16">
           <div className="inline-flex items-center gap-3 mb-4"><div className="h-px w-10 bg-korma-gold" /><span className="text-korma-gold text-xs font-bold tracking-[0.3em] uppercase">Our Disciplines</span><div className="h-px w-10 bg-korma-gold" /></div>
-          <h2 className="text-4xl sm:text-5xl font-black text-white mb-4 tracking-tight">Three Paths, One <span className="gold-shimmer">Legacy</span></h2>
+          <h2 className="text-4xl sm:text-5xl font-black text-white mb-4 tracking-tight">Four Paths, One <span className="gold-shimmer">Legacy</span></h2>
           <p className="text-white/50 text-lg max-w-2xl mx-auto">Whether you seek combat discipline, self-defense skills, or inner peace, KORMA-USA offers an authentic path rooted in centuries of Korean tradition.</p>
         </div>
         <motion.div variants={containerVariants} initial="hidden" whileInView="visible" viewport={{ once: true, margin: "-80px" }}>
