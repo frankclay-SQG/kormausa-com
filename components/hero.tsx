@@ -30,7 +30,7 @@ export function Hero() {
             <div className="absolute inset-0 rounded-full bg-korma-gold/10 blur-3xl scale-110" />
             <div className="absolute inset-4 rounded-full border border-korma-gold/20" />
             <div className="absolute inset-0 rounded-full border border-korma-gold/10" />
-            <Image src="https://galaxy-prod.tlcdn.com/gen/user_34hHhppb2NuRvdy5opEyFBssEv2/d9ba3e4f-cb21-4341-86c8-118efeaa9365.jpg" alt="KORMA-USA — Korean Martial Arts Association" fill className="object-contain drop-shadow-2xl" priority sizes="(max-width: 640px) 288px, 384px" />
+                    <Image src="/korma-logo.png" alt="KORMA-USA — Korean Martial Arts Association" fill className="object-contain drop-shadow-2xl" priority sizes="(max-width: 640px) 288px, 384px" />
           </div>
         </motion.div>
       </div>
