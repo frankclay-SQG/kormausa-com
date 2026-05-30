@@ -1,10 +1,11 @@
 "use client";
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Send, MapPin, Phone, Mail, CheckCircle, Loader2 } from "lucide-react";
+import { Send, MapPin, Phone, Mail, CheckCircle, Loader2, Calendar } from "lucide-react";
 
 const CLASS_OPTIONS = ["taekwondo", "hapkido", "taichi", "kumdo"];
 const SEMINAR_OPTIONS = ["seminar-corporate", "seminar-individual"];
+const MEETINGS_URL = "https://meetings-na2.hubspot.com/frank-clay";
 
 export function Contact() {
   const [submitted, setSubmitted] = useState(false);
@@ -12,9 +13,7 @@ export function Contact() {
   const [error, setError] = useState("");
   const [form, setForm] = useState({
     name: "", email: "", phone: "", interest: "", message: "",
-    // class fields
     experience: "", schedule: "",
-    // seminar fields
     organization: "", groupSize: "", preferredDate: "",
   });
 
@@ -64,7 +63,8 @@ export function Contact() {
       <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_left,_rgba(29,52,97,0.5)_0%,_transparent_60%)]" />
       <div className="relative max-w-7xl mx-auto px-4 sm:px-6">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-start">
-          {/* ── Left column: info ── */}
+
+          {/* Left column */}
           <motion.div
             initial={{ opacity: 0, x: -30 }}
             whileInView={{ opacity: 1, x: 0 }}
@@ -119,7 +119,7 @@ export function Contact() {
             </div>
           </motion.div>
 
-          {/* ── Right column: form ── */}
+          {/* Right column */}
           <motion.div
             initial={{ opacity: 0, x: 30 }}
             whileInView={{ opacity: 1, x: 0 }}
@@ -132,9 +132,22 @@ export function Contact() {
                 <h3 className="text-2xl font-black text-white mb-3">
                   Message Received!
                 </h3>
-                <p className="text-white/55">
+                <p className="text-white/55 mb-8">
                   Thank you for reaching out. A KORMA-USA instructor will
-                  contact you within 24 hours to schedule your visit.
+                  contact you within 24 hours — or skip the wait and book
+                  your time slot right now.
+                </p>
+                <a
+                  href={MEETINGS_URL}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-2 px-8 py-4 bg-korma-gold text-korma-dark font-bold text-sm rounded uppercase tracking-wider hover:bg-korma-gold-light transition-colors"
+                >
+                  <Calendar className="h-4 w-4" />
+                  Schedule Your Visit Now
+                </a>
+                <p className="text-white/30 text-xs mt-4">
+                  15 min · 30 min · 60 min — pick what fits
                 </p>
               </div>
             ) : (
@@ -151,25 +164,17 @@ export function Contact() {
                   <div>
                     <label className={labelClass}>Full Name *</label>
                     <input
-                      type="text"
-                      name="name"
-                      required
-                      value={form.name}
-                      onChange={handleChange}
-                      placeholder="Your full name"
-                      className={fieldClass}
+                      type="text" name="name" required
+                      value={form.name} onChange={handleChange}
+                      placeholder="Your full name" className={fieldClass}
                     />
                   </div>
                   <div>
                     <label className={labelClass}>Email *</label>
                     <input
-                      type="email"
-                      name="email"
-                      required
-                      value={form.email}
-                      onChange={handleChange}
-                      placeholder="your@email.com"
-                      className={fieldClass}
+                      type="email" name="email" required
+                      value={form.email} onChange={handleChange}
+                      placeholder="your@email.com" className={fieldClass}
                     />
                   </div>
                 </div>
@@ -179,78 +184,30 @@ export function Contact() {
                   <div>
                     <label className={labelClass}>Phone</label>
                     <input
-                      type="tel"
-                      name="phone"
-                      value={form.phone}
-                      onChange={handleChange}
-                      placeholder="(555) 000-0000"
-                      className={fieldClass}
+                      type="tel" name="phone"
+                      value={form.phone} onChange={handleChange}
+                      placeholder="(555) 000-0000" className={fieldClass}
                     />
                   </div>
                   <div>
                     <label className={labelClass}>Interested In *</label>
                     <select
-                      name="interest"
-                      required
-                      value={form.interest}
-                      onChange={handleChange}
+                      name="interest" required
+                      value={form.interest} onChange={handleChange}
                       className={`${fieldClass} text-white/70 appearance-none`}
                     >
-                      <option value="" className="bg-korma-navy-deeper">
-                        Select a program
-                      </option>
-                      <optgroup
-                        label="Regular Classes"
-                        className="bg-korma-navy-deeper"
-                      >
-                        <option
-                          value="taekwondo"
-                          className="bg-korma-navy-deeper"
-                        >
-                          Taekwondo
-                        </option>
-                        <option
-                          value="hapkido"
-                          className="bg-korma-navy-deeper"
-                        >
-                          Hapkido
-                        </option>
-                        <option
-                          value="taichi"
-                          className="bg-korma-navy-deeper"
-                        >
-                          Tai Chi
-                        </option>
-                        <option
-                          value="kumdo"
-                          className="bg-korma-navy-deeper"
-                        >
-                          KumDo
-                        </option>
+                      <option value="" className="bg-korma-navy-deeper">Select a program</option>
+                      <optgroup label="Regular Classes" className="bg-korma-navy-deeper">
+                        <option value="taekwondo" className="bg-korma-navy-deeper">Taekwondo</option>
+                        <option value="hapkido" className="bg-korma-navy-deeper">Hapkido</option>
+                        <option value="taichi" className="bg-korma-navy-deeper">Tai Chi</option>
+                        <option value="kumdo" className="bg-korma-navy-deeper">KumDo</option>
                       </optgroup>
-                      <optgroup
-                        label="Self Defense Seminars"
-                        className="bg-korma-navy-deeper"
-                      >
-                        <option
-                          value="seminar-corporate"
-                          className="bg-korma-navy-deeper"
-                        >
-                          Corporate Seminar
-                        </option>
-                        <option
-                          value="seminar-individual"
-                          className="bg-korma-navy-deeper"
-                        >
-                          Individual Seminar
-                        </option>
+                      <optgroup label="Self Defense Seminars" className="bg-korma-navy-deeper">
+                        <option value="seminar-corporate" className="bg-korma-navy-deeper">Corporate Seminar</option>
+                        <option value="seminar-individual" className="bg-korma-navy-deeper">Individual Seminar</option>
                       </optgroup>
-                      <option
-                        value="general"
-                        className="bg-korma-navy-deeper"
-                      >
-                        General Inquiry
-                      </option>
+                      <option value="general" className="bg-korma-navy-deeper">General Inquiry</option>
                     </select>
                   </div>
                 </div>
@@ -269,90 +226,25 @@ export function Contact() {
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-1">
                         <div>
                           <label className={labelClass}>Experience Level</label>
-                          <select
-                            name="experience"
-                            value={form.experience}
-                            onChange={handleChange}
-                            className={`${fieldClass} text-white/70 appearance-none`}
-                          >
-                            <option
-                              value=""
-                              className="bg-korma-navy-deeper"
-                            >
-                              Select level
-                            </option>
-                            <option
-                              value="beginner"
-                              className="bg-korma-navy-deeper"
-                            >
-                              Beginner — No experience
-                            </option>
-                            <option
-                              value="some"
-                              className="bg-korma-navy-deeper"
-                            >
-                              Some experience (1–2 yrs)
-                            </option>
-                            <option
-                              value="intermediate"
-                              className="bg-korma-navy-deeper"
-                            >
-                              Intermediate (3–5 yrs)
-                            </option>
-                            <option
-                              value="advanced"
-                              className="bg-korma-navy-deeper"
-                            >
-                              Advanced (5+ yrs)
-                            </option>
+                          <select name="experience" value={form.experience} onChange={handleChange}
+                            className={`${fieldClass} text-white/70 appearance-none`}>
+                            <option value="" className="bg-korma-navy-deeper">Select level</option>
+                            <option value="beginner" className="bg-korma-navy-deeper">Beginner — No experience</option>
+                            <option value="some" className="bg-korma-navy-deeper">Some experience (1–2 yrs)</option>
+                            <option value="intermediate" className="bg-korma-navy-deeper">Intermediate (3–5 yrs)</option>
+                            <option value="advanced" className="bg-korma-navy-deeper">Advanced (5+ yrs)</option>
                           </select>
                         </div>
                         <div>
-                          <label className={labelClass}>
-                            Preferred Schedule
-                          </label>
-                          <select
-                            name="schedule"
-                            value={form.schedule}
-                            onChange={handleChange}
-                            className={`${fieldClass} text-white/70 appearance-none`}
-                          >
-                            <option
-                              value=""
-                              className="bg-korma-navy-deeper"
-                            >
-                              Select preference
-                            </option>
-                            <option
-                              value="weekday-morning"
-                              className="bg-korma-navy-deeper"
-                            >
-                              Weekday mornings
-                            </option>
-                            <option
-                              value="weekday-evening"
-                              className="bg-korma-navy-deeper"
-                            >
-                              Weekday evenings
-                            </option>
-                            <option
-                              value="weekend-morning"
-                              className="bg-korma-navy-deeper"
-                            >
-                              Weekend mornings
-                            </option>
-                            <option
-                              value="weekend-afternoon"
-                              className="bg-korma-navy-deeper"
-                            >
-                              Weekend afternoons
-                            </option>
-                            <option
-                              value="flexible"
-                              className="bg-korma-navy-deeper"
-                            >
-                              Flexible
-                            </option>
+                          <label className={labelClass}>Preferred Schedule</label>
+                          <select name="schedule" value={form.schedule} onChange={handleChange}
+                            className={`${fieldClass} text-white/70 appearance-none`}>
+                            <option value="" className="bg-korma-navy-deeper">Select preference</option>
+                            <option value="weekday-morning" className="bg-korma-navy-deeper">Weekday mornings</option>
+                            <option value="weekday-evening" className="bg-korma-navy-deeper">Weekday evenings</option>
+                            <option value="weekend-morning" className="bg-korma-navy-deeper">Weekend mornings</option>
+                            <option value="weekend-afternoon" className="bg-korma-navy-deeper">Weekend afternoons</option>
+                            <option value="flexible" className="bg-korma-navy-deeper">Flexible</option>
                           </select>
                         </div>
                       </div>
@@ -374,73 +266,30 @@ export function Contact() {
                       <div className="space-y-4 pt-1">
                         {form.interest === "seminar-corporate" && (
                           <div>
-                            <label className={labelClass}>
-                              Organization / Company Name
-                            </label>
-                            <input
-                              type="text"
-                              name="organization"
-                              value={form.organization}
-                              onChange={handleChange}
-                              placeholder="Your organization"
-                              className={fieldClass}
+                            <label className={labelClass}>Organization / Company Name</label>
+                            <input type="text" name="organization"
+                              value={form.organization} onChange={handleChange}
+                              placeholder="Your organization" className={fieldClass}
                             />
                           </div>
                         )}
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                           <div>
                             <label className={labelClass}>Group Size</label>
-                            <select
-                              name="groupSize"
-                              value={form.groupSize}
-                              onChange={handleChange}
-                              className={`${fieldClass} text-white/70 appearance-none`}
-                            >
-                              <option
-                                value=""
-                                className="bg-korma-navy-deeper"
-                              >
-                                Select size
-                              </option>
-                              <option
-                                value="1"
-                                className="bg-korma-navy-deeper"
-                              >
-                                Just me (1)
-                              </option>
-                              <option
-                                value="2-5"
-                                className="bg-korma-navy-deeper"
-                              >
-                                Small group (2–5)
-                              </option>
-                              <option
-                                value="6-15"
-                                className="bg-korma-navy-deeper"
-                              >
-                                Medium group (6–15)
-                              </option>
-                              <option
-                                value="16-30"
-                                className="bg-korma-navy-deeper"
-                              >
-                                Large group (16–30)
-                              </option>
-                              <option
-                                value="30+"
-                                className="bg-korma-navy-deeper"
-                              >
-                                30+ people
-                              </option>
+                            <select name="groupSize" value={form.groupSize} onChange={handleChange}
+                              className={`${fieldClass} text-white/70 appearance-none`}>
+                              <option value="" className="bg-korma-navy-deeper">Select size</option>
+                              <option value="1" className="bg-korma-navy-deeper">Just me (1)</option>
+                              <option value="2-5" className="bg-korma-navy-deeper">Small group (2–5)</option>
+                              <option value="6-15" className="bg-korma-navy-deeper">Medium group (6–15)</option>
+                              <option value="16-30" className="bg-korma-navy-deeper">Large group (16–30)</option>
+                              <option value="30+" className="bg-korma-navy-deeper">30+ people</option>
                             </select>
                           </div>
                           <div>
                             <label className={labelClass}>Preferred Date</label>
-                            <input
-                              type="date"
-                              name="preferredDate"
-                              value={form.preferredDate}
-                              onChange={handleChange}
+                            <input type="date" name="preferredDate"
+                              value={form.preferredDate} onChange={handleChange}
                               className={`${fieldClass} text-white/70`}
                             />
                           </div>
@@ -453,36 +302,24 @@ export function Contact() {
                 {/* Message */}
                 <div>
                   <label className={labelClass}>Message</label>
-                  <textarea
-                    name="message"
-                    value={form.message}
-                    onChange={handleChange}
-                    rows={4}
-                    placeholder="Tell us about your goals or ask any questions..."
+                  <textarea name="message" value={form.message} onChange={handleChange}
+                    rows={4} placeholder="Tell us about your goals or ask any questions..."
                     className={`${fieldClass} resize-none`}
                   />
                 </div>
 
-                {/* Error message */}
                 {error && (
                   <p className="text-red-400 text-sm text-center">{error}</p>
                 )}
 
                 <button
-                  type="submit"
-                  disabled={loading}
+                  type="submit" disabled={loading}
                   className="w-full flex items-center justify-center gap-2 px-6 py-4 bg-korma-gold text-korma-dark font-bold text-sm rounded uppercase tracking-wider hover:bg-korma-gold-light transition-colors disabled:opacity-70 disabled:cursor-not-allowed"
                 >
                   {loading ? (
-                    <>
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                      Sending...
-                    </>
+                    <><Loader2 className="h-4 w-4 animate-spin" />Sending...</>
                   ) : (
-                    <>
-                      <Send className="h-4 w-4" />
-                      Send Message
-                    </>
+                    <><Send className="h-4 w-4" />Send Message</>
                   )}
                 </button>
                 <p className="text-white/30 text-xs text-center">
