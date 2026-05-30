@@ -48,7 +48,7 @@ export function Navbar() {
         <Link href="#home" className="flex items-center gap-3 group">
           <div className="relative w-12 h-12 flex-shrink-0">
             <Image
-              src="https://galaxy-prod.tlcdn.com/gen/user_34hHppb2NuRvdy5opEyFBssEv2/d9ba3e4f-cb21-4341-86c8-118efea9365.jpg"
+                            src="/korma-logo.png"
               alt="KORMA-USA Logo"
               fill
               className="object-contain"
