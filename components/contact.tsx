@@ -1,7 +1,16 @@
 "use client";
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Send, MapPin, Phone, Mail, CheckCircle, Loader2, Calendar } from "lucide-react";
+import {
+  Send,
+  MapPin,
+  Phone,
+  Mail,
+  CheckCircle,
+  Loader2,
+  Calendar,
+  FileText,
+} from "lucide-react";
 
 const CLASS_OPTIONS = ["taekwondo", "hapkido", "taichi", "kumdo"];
 const SEMINAR_OPTIONS = ["seminar-corporate", "seminar-individual"];
@@ -109,7 +118,7 @@ export function Contact() {
             </div>
             <div className="mt-10 p-6 rounded-xl border border-korma-gold/20 bg-korma-gold/5">
               <div className="text-korma-gold font-bold text-sm uppercase tracking-wider mb-2">
-                🥋 Free Trial Class
+                🌻 Free Trial Class
               </div>
               <p className="text-white/60 text-sm">
                 New students are welcome to attend one free class in any
@@ -127,16 +136,18 @@ export function Contact() {
             transition={{ duration: 0.7, delay: 0.15 }}
           >
             {submitted ? (
-              <div className="flex flex-col items-center justify-center py-16 px-8 rounded-2xl border border-korma-gold/20 bg-white/[0.03] text-center">
+              <div className="flex flex-col items-center justify-center py-14 px-8 rounded-2xl border border-korma-gold/20 bg-white/[0.03] text-center">
                 <CheckCircle className="h-14 w-14 text-korma-gold mb-4" />
                 <h3 className="text-2xl font-black text-white mb-3">
                   Message Received!
                 </h3>
-                <p className="text-white/55 mb-8">
+                <p className="text-white/55 mb-7">
                   Thank you for reaching out. A KORMA-USA instructor will
                   contact you within 24 hours — or skip the wait and book
                   your time slot right now.
                 </p>
+
+                {/* Book a session */}
                 <a
                   href={MEETINGS_URL}
                   target="_blank"
@@ -146,8 +157,27 @@ export function Contact() {
                   <Calendar className="h-4 w-4" />
                   Schedule Your Visit Now
                 </a>
-                <p className="text-white/30 text-xs mt-4">
+                <p className="text-white/30 text-xs mt-3">
                   15 min · 30 min · 60 min — pick what fits
+                </p>
+
+                {/* Divider */}
+                <div className="w-full flex items-center gap-3 my-6">
+                  <div className="flex-1 h-px bg-white/10" />
+                  <span className="text-white/25 text-xs uppercase tracking-wider">also</span>
+                  <div className="flex-1 h-px bg-white/10" />
+                </div>
+
+                {/* Waiver CTA */}
+                <a
+                  href="/waiver"
+                  className="inline-flex items-center gap-2 px-6 py-3 border border-white/20 text-white/70 text-sm rounded uppercase tracking-wider hover:border-korma-gold/40 hover:text-white transition-colors"
+                >
+                  <FileText className="h-4 w-4" />
+                  Sign Liability Waiver
+                </a>
+                <p className="text-white/30 text-xs mt-2">
+                  Required before your first class
                 </p>
               </div>
             ) : (
