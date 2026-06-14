@@ -50,6 +50,7 @@ import type {
   ApplicationDraft,
   ApplicationRegistration,
   ApplicationServiceId,
+  CertificationProfileDraft,
   DanLevelId,
   MartialArt,
   MartialArtId,
@@ -65,6 +66,7 @@ import { cn } from "@/lib/utils";
 const STORAGE_KEY = "kormaApplicationDraft.v1";
 type SchoolTextField = "schoolName" | "schoolType" | "city" | "state";
 type RegistrationField = keyof ApplicationRegistration;
+type CertificationField = keyof CertificationProfileDraft;
 type PromotionField = keyof Omit<PromotionHistoryEntry, "id">;
 type EligibilityField = keyof TestingEligibilityDraft;
 
@@ -75,11 +77,24 @@ const serviceIcons: Record<ApplicationServiceId, ElementType> = {
 };
 
 const steps = [
-  { id: 1, label: "Register" },
-  { id: 2, label: "Services" },
-  { id: 3, label: "Details" },
+  { id: 1, label: "Certification" },
+  { id: 2, label: "Registration" },
+  { id: 3, label: "Application" },
   { id: 4, label: "Review" },
 ];
+
+const YEARS_TRAINING_OPTIONS = [
+  "Less than 1 year",
+  "1-3 years",
+  "4-7 years",
+  "8-15 years",
+  "16-25 years",
+  "25+ years",
+];
+
+const CERTIFICATION_RANK_OPTIONS = Array.from(
+  new Set(MARTIAL_ARTS.flatMap((art) => art.rankLevels))
+);
 
 type SaveState = "idle" | "saving" | "saved";
 type AddressSearchState = "idle" | "searching" | "validating";
@@ -113,6 +128,10 @@ export function ApplicationBuilder() {
           registration: {
             ...defaults.registration,
             ...(parsed.registration ?? {}),
+          },
+          certificationProfile: {
+            ...defaults.certificationProfile,
+            ...(parsed.certificationProfile ?? {}),
           },
           school: {
             ...defaults.school,
@@ -184,6 +203,8 @@ export function ApplicationBuilder() {
     [draft.rankDanLevelId]
   );
 
+  const certificationReady =
+    draft.selectedServices.length > 0 && draft.selectedArts.length > 0;
   const registrationComplete = isRegistrationComplete(draft.registration);
   const readyForReview = isDraftReadyForReview(draft);
   const minutes = selectedServices.reduce(
@@ -235,6 +256,22 @@ export function ApplicationBuilder() {
           typeof updates.email === "string"
             ? updates.email
             : current.submitterEmail,
+      })
+    );
+  }, []);
+
+  const updateCertificationProfile = useCallback((
+    field: CertificationField,
+    value: string
+  ) => {
+    setDraft((current) =>
+      markUpdated({
+        ...current,
+        status: "draft",
+        certificationProfile: {
+          ...current.certificationProfile,
+          [field]: value,
+        },
       })
     );
   }, []);
@@ -366,8 +403,8 @@ export function ApplicationBuilder() {
             Ready to Start the Process?
           </h1>
           <p className="mt-5 max-w-2xl text-base leading-relaxed text-white/55 sm:text-lg">
-            Select the services you need, add the martial arts involved, and
-            prepare a draft that can become the formal submission package.
+            Start with certification review, then complete registration and
+            build the application package with the same applicant details.
           </p>
         </div>
         <DraftStatusPanel
@@ -375,6 +412,7 @@ export function ApplicationBuilder() {
           minutes={minutes}
           saveState={saveState}
           readyForReview={readyForReview}
+          certificationReady={certificationReady}
           registrationComplete={registrationComplete}
           onReset={resetDraft}
         />
@@ -385,6 +423,16 @@ export function ApplicationBuilder() {
       <div className="grid gap-8 lg:grid-cols-[1fr_360px]">
         <div className="min-h-[520px] rounded-2xl border border-white/10 bg-white/[0.03] p-5 sm:p-8">
           {step === 1 && (
+            <CertificationStep
+              draft={draft}
+              complete={certificationReady}
+              onSelectService={selectService}
+              onSelectArt={selectArt}
+              onUpdateCertificationProfile={updateCertificationProfile}
+              onUpdateSchool={updateSchool}
+            />
+          )}
+          {step === 2 && (
             <RegistrationStep
               registration={draft.registration}
               complete={registrationComplete}
@@ -392,16 +440,9 @@ export function ApplicationBuilder() {
               onPatchRegistration={patchRegistrationFields}
             />
           )}
-          {step === 2 && (
-            <ServiceStep
-              selectedServices={draft.selectedServices}
-              onSelectService={selectService}
-            />
-          )}
           {step === 3 && (
             <DetailsStep
               draft={draft}
-              onSelectArt={selectArt}
               onSelectRankDanLevel={selectDanLevel}
               onUpdateSchool={updateSchool}
               onAddPromotionHistory={addPromotionHistory}
@@ -431,6 +472,20 @@ export function ApplicationBuilder() {
           </h2>
           <div className="mt-5 space-y-5">
             <SummaryGroup
+              title="Certification"
+              empty="Certification intake required"
+              values={[
+                ...selectedServices.map((service) => service?.title ?? ""),
+                ...selectedArts.map((art) => art?.title ?? ""),
+                draft.certificationProfile.currentRank
+                  ? `Current rank: ${draft.certificationProfile.currentRank}`
+                  : "",
+                draft.certificationProfile.yearsTraining
+                  ? `Training: ${draft.certificationProfile.yearsTraining}`
+                  : "",
+              ].filter(Boolean)}
+            />
+            <SummaryGroup
               title="Registration"
               empty="Registration required"
               values={[
@@ -443,16 +498,6 @@ export function ApplicationBuilder() {
                 draft.registration.allowTexts ? "Text permission granted" : "",
                 draft.registration.allowEmails ? "Email permission granted" : "",
               ].filter(Boolean)}
-            />
-            <SummaryGroup
-              title="Services"
-              empty="No services selected"
-              values={selectedServices.map((service) => service?.title ?? "")}
-            />
-            <SummaryGroup
-              title="Martial Arts"
-              empty="No arts selected"
-              values={selectedArts.map((art) => art?.title ?? "")}
             />
             {draft.selectedServices.includes("rank-registration") && (
               <SummaryGroup
@@ -505,8 +550,8 @@ export function ApplicationBuilder() {
           onClick={() => setStep((current) => Math.min(4, current + 1))}
           disabled={
             step === 4 ||
-            (step === 1 && !registrationComplete) ||
-            (step === 2 && draft.selectedServices.length === 0)
+            (step === 1 && !certificationReady) ||
+            (step === 2 && !registrationComplete)
           }
           className="inline-flex items-center justify-center gap-2 rounded bg-korma-gold px-6 py-3 text-sm font-bold uppercase tracking-wider text-korma-dark transition-colors hover:bg-korma-gold-light disabled:cursor-not-allowed disabled:opacity-50"
         >
@@ -563,6 +608,7 @@ function DraftStatusPanel({
   minutes,
   saveState,
   readyForReview,
+  certificationReady,
   registrationComplete,
   onReset,
 }: {
@@ -570,6 +616,7 @@ function DraftStatusPanel({
   minutes: number;
   saveState: SaveState;
   readyForReview: boolean;
+  certificationReady: boolean;
   registrationComplete: boolean;
   onReset: () => void;
 }) {
@@ -589,9 +636,22 @@ function DraftStatusPanel({
         </button>
       </div>
       <div className="mt-4 grid grid-cols-3 gap-3">
-        <Metric label="Services" value={String(draft.selectedServices.length)} />
+        <Metric label="Tracks" value={String(draft.selectedServices.length)} />
         <Metric label="Arts" value={String(draft.selectedArts.length)} />
         <Metric label="Minutes" value={minutes ? String(minutes) : "-"} />
+      </div>
+      <div
+        className={cn(
+          "mt-4 flex items-center gap-2 rounded-lg border px-3 py-2 text-sm",
+          certificationReady
+            ? "border-korma-gold/30 bg-korma-gold/10 text-korma-gold"
+            : "border-white/10 bg-white/[0.03] text-white/45"
+        )}
+      >
+        <Award className="h-4 w-4" />
+        {certificationReady
+          ? "Certification intake started"
+          : "Certification choices required"}
       </div>
       <div
         className={cn(
@@ -627,6 +687,212 @@ function Metric({ label, value }: { label: string; value: string }) {
         {label}
       </div>
     </div>
+  );
+}
+
+function CertificationStep({
+  draft,
+  complete,
+  onSelectService,
+  onSelectArt,
+  onUpdateCertificationProfile,
+  onUpdateSchool,
+}: {
+  draft: ApplicationDraft;
+  complete: boolean;
+  onSelectService: (serviceId: ApplicationServiceId) => void;
+  onSelectArt: (artId: MartialArtId) => void;
+  onUpdateCertificationProfile: (
+    field: CertificationField,
+    value: string
+  ) => void;
+  onUpdateSchool: (field: SchoolTextField, value: string) => void;
+}) {
+  const needsSchoolName = draft.selectedServices.includes("school-registration");
+
+  return (
+    <section>
+      <SectionHeader
+        eyebrow="Step 1"
+        title="Certification Review"
+        description="Start with the certification tracks and martial arts involved. This profile feeds the shared application record and HubSpot submission."
+      />
+
+      <div className="mt-8">
+        <h3 className="text-sm font-bold uppercase tracking-wider text-white">
+          Requested Tracks
+        </h3>
+        <div className="mt-4 grid gap-5 lg:grid-cols-3">
+          {APPLICATION_SERVICES.map((service) => {
+            const Icon = serviceIcons[service.id];
+            const selected = draft.selectedServices.includes(service.id);
+            return (
+              <button
+                key={service.id}
+                type="button"
+                onClick={() => onSelectService(service.id)}
+                className={cn(
+                  "group flex h-full flex-col rounded-xl border p-5 text-left transition-all",
+                  selected
+                    ? "border-korma-gold/60 bg-korma-gold/10"
+                    : "border-white/10 bg-white/[0.03] hover:border-korma-gold/30"
+                )}
+              >
+                <div className="flex items-start justify-between gap-4">
+                  <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-korma-gold/10">
+                    <Icon className="h-6 w-6 text-korma-gold" />
+                  </div>
+                  <div
+                    className={cn(
+                      "flex h-6 w-6 items-center justify-center rounded-full border",
+                      selected
+                        ? "border-korma-gold bg-korma-gold text-korma-dark"
+                        : "border-white/20 text-transparent"
+                    )}
+                  >
+                    <Check className="h-3.5 w-3.5" />
+                  </div>
+                </div>
+                <h3 className="mt-5 text-lg font-black text-white">
+                  {service.title}
+                </h3>
+                <p className="mt-2 text-sm leading-relaxed text-white/55">
+                  {service.description}
+                </p>
+                <div className="mt-5 rounded-lg border border-korma-gold/20 bg-korma-gold/10 px-3 py-2 text-xs font-semibold text-korma-gold">
+                  Cost placeholder: {service.pricePlaceholder}
+                </div>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      <div className="mt-8">
+        <h3 className="text-sm font-bold uppercase tracking-wider text-white">
+          Martial Arts
+        </h3>
+        <div className="mt-4 grid gap-4 md:grid-cols-3">
+          {MARTIAL_ARTS.map((art) => {
+            const selected = draft.selectedArts.includes(art.id);
+            return (
+              <button
+                key={art.id}
+                type="button"
+                onClick={() => onSelectArt(art.id)}
+                className={cn(
+                  "rounded-xl border p-5 text-left transition-colors",
+                  selected
+                    ? "border-korma-gold/60 bg-korma-gold/10"
+                    : "border-white/10 bg-white/[0.03] hover:border-korma-gold/30"
+                )}
+              >
+                <div className="flex items-center justify-between gap-3">
+                  <h4 className="font-black text-white">{art.title}</h4>
+                  {selected && <Check className="h-4 w-4 text-korma-gold" />}
+                </div>
+                <p className="mt-2 text-sm leading-relaxed text-white/50">
+                  {art.description}
+                </p>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      <div className="mt-8 grid gap-4 md:grid-cols-2">
+        <Field label="Current Rank">
+          <select
+            value={draft.certificationProfile.currentRank}
+            onChange={(event) =>
+              onUpdateCertificationProfile("currentRank", event.target.value)
+            }
+            className={inputClass}
+          >
+            <option value="">Select rank</option>
+            {CERTIFICATION_RANK_OPTIONS.map((rank) => (
+              <option key={rank} value={rank}>
+                {rank}
+              </option>
+            ))}
+          </select>
+        </Field>
+        <Field label="Years Training">
+          <select
+            value={draft.certificationProfile.yearsTraining}
+            onChange={(event) =>
+              onUpdateCertificationProfile("yearsTraining", event.target.value)
+            }
+            className={inputClass}
+          >
+            <option value="">Select years</option>
+            {YEARS_TRAINING_OPTIONS.map((option) => (
+              <option key={option} value={option}>
+                {option}
+              </option>
+            ))}
+          </select>
+        </Field>
+        <Field label="Current Organization / Lineage">
+          <input
+            value={draft.certificationProfile.currentOrg}
+            onChange={(event) =>
+              onUpdateCertificationProfile("currentOrg", event.target.value)
+            }
+            className={inputClass}
+            placeholder="Changmookwan, Migukyongkwan, KORMA-USA"
+          />
+        </Field>
+        <Field label="Instructor / Grandmaster">
+          <input
+            value={draft.certificationProfile.instructorName}
+            onChange={(event) =>
+              onUpdateCertificationProfile("instructorName", event.target.value)
+            }
+            className={inputClass}
+            placeholder="Instructor or certifying master"
+          />
+        </Field>
+        {needsSchoolName && (
+          <Field label="School / Dojang Name">
+            <input
+              value={draft.school.schoolName}
+              onChange={(event) =>
+                onUpdateSchool("schoolName", event.target.value)
+              }
+              className={inputClass}
+              placeholder="Virginia Changmookwan Academy"
+            />
+          </Field>
+        )}
+        <div className={cn(needsSchoolName ? "" : "md:col-span-2")}>
+          <Field label="Additional Notes">
+            <textarea
+              value={draft.certificationProfile.notes}
+              onChange={(event) =>
+                onUpdateCertificationProfile("notes", event.target.value)
+              }
+              className={cn(inputClass, "min-h-28 resize-y")}
+              placeholder="Training background, review goals, lineage notes, or context for the application team."
+            />
+          </Field>
+        </div>
+      </div>
+
+      <div
+        className={cn(
+          "mt-6 flex items-center gap-2 rounded-lg border px-4 py-3 text-sm",
+          complete
+            ? "border-korma-gold/30 bg-korma-gold/10 text-korma-gold"
+            : "border-white/10 bg-white/[0.03] text-white/45"
+        )}
+      >
+        <ShieldCheck className="h-4 w-4" />
+        {complete
+          ? "Certification details are ready to carry into registration and application review."
+          : "Choose at least one requested track and one martial art to continue."}
+      </div>
+    </section>
   );
 }
 
@@ -805,9 +1071,9 @@ function RegistrationStep({
   return (
     <section>
       <SectionHeader
-        eyebrow="Step 1"
+        eyebrow="Step 2"
         title="KORMA-USA Registration"
-        description="Registration is required before starting an application. These details are inherited into the application package, billing, and HubSpot tracking."
+        description="Registration is required before submitting the application package. Confirm the mailing address and communication permissions here."
       />
 
       <div className="mt-8 grid gap-4 md:grid-cols-2">
@@ -1005,7 +1271,7 @@ function RegistrationStep({
       >
         <ShieldCheck className="h-4 w-4" />
         {complete
-          ? "Registration can be inherited into applications."
+          ? "Registration is complete."
           : "Complete all required registration fields, validate the mailing address, and select both permissions to continue."}
       </div>
     </section>
@@ -1090,81 +1356,14 @@ function InheritedRegistrationItem({
         {label}
       </div>
       <div className="mt-1 text-sm font-semibold text-white">
-        {value || "Inherited from registration"}
+        {value || "Not provided yet"}
       </div>
     </div>
   );
 }
 
-function ServiceStep({
-  selectedServices,
-  onSelectService,
-}: {
-  selectedServices: ApplicationServiceId[];
-  onSelectService: (serviceId: ApplicationServiceId) => void;
-}) {
-  return (
-    <section>
-      <SectionHeader
-        eyebrow="Step 2"
-        title="Choose requested services"
-        description="Select one service or combine multiple requests in the same application."
-      />
-      <div className="mt-8 grid gap-5 lg:grid-cols-3">
-        {APPLICATION_SERVICES.map((service) => {
-          const Icon = serviceIcons[service.id];
-          const selected = selectedServices.includes(service.id);
-          return (
-            <button
-              key={service.id}
-              type="button"
-              onClick={() => onSelectService(service.id)}
-              className={cn(
-                "group flex h-full flex-col rounded-xl border p-5 text-left transition-all",
-                selected
-                  ? "border-korma-gold/60 bg-korma-gold/10"
-                  : "border-white/10 bg-white/[0.03] hover:border-korma-gold/30"
-              )}
-            >
-              <div className="flex items-start justify-between gap-4">
-                <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-korma-gold/10">
-                  <Icon className="h-6 w-6 text-korma-gold" />
-                </div>
-                <div
-                  className={cn(
-                    "flex h-6 w-6 items-center justify-center rounded-full border",
-                    selected
-                      ? "border-korma-gold bg-korma-gold text-korma-dark"
-                      : "border-white/20 text-transparent"
-                  )}
-                >
-                  <Check className="h-3.5 w-3.5" />
-                </div>
-              </div>
-              <h3 className="mt-5 text-lg font-black text-white">
-                {service.title}
-              </h3>
-              <p className="mt-2 text-sm leading-relaxed text-white/55">
-                {service.description}
-              </p>
-              <div className="mt-5 flex items-center gap-2 text-xs uppercase tracking-wider text-white/35">
-                <Clock className="h-3.5 w-3.5" />
-                About {service.estimatedMinutes} min
-              </div>
-              <div className="mt-3 rounded-lg border border-korma-gold/20 bg-korma-gold/10 px-3 py-2 text-xs font-semibold text-korma-gold">
-                Cost placeholder: {service.pricePlaceholder}
-              </div>
-            </button>
-          );
-        })}
-      </div>
-    </section>
-  );
-}
-
 function DetailsStep({
   draft,
-  onSelectArt,
   onSelectRankDanLevel,
   onUpdateSchool,
   onAddPromotionHistory,
@@ -1177,7 +1376,6 @@ function DetailsStep({
   onVerifyMasterKey,
 }: {
   draft: ApplicationDraft;
-  onSelectArt: (artId: MartialArtId) => void;
   onSelectRankDanLevel: (danLevelId: DanLevelId) => void;
   onUpdateSchool: (field: SchoolTextField, value: string) => void;
   onAddPromotionHistory: () => void;
@@ -1196,10 +1394,6 @@ function DetailsStep({
   onUpdateMasterKey: (value: string) => void;
   onVerifyMasterKey: () => void;
 }) {
-  const needsArts =
-    draft.selectedServices.includes("rank-registration") ||
-    draft.selectedServices.includes("instructor-certification") ||
-    draft.selectedServices.includes("school-registration");
   const needsRankLevel = draft.selectedServices.includes("rank-registration");
   const needsSchool = draft.selectedServices.includes("school-registration");
 
@@ -1247,39 +1441,52 @@ function DetailsStep({
         </div>
       </div>
 
-      {needsArts && (
-        <div className="mt-8">
-          <h3 className="text-sm font-bold uppercase tracking-wider text-white">
-            Martial Arts
-          </h3>
-          <div className="mt-4 grid gap-4 md:grid-cols-3">
-            {MARTIAL_ARTS.map((art) => {
-              const selected = draft.selectedArts.includes(art.id);
-              return (
-                <button
-                  key={art.id}
-                  type="button"
-                  onClick={() => onSelectArt(art.id)}
-                  className={cn(
-                    "rounded-xl border p-5 text-left transition-colors",
-                    selected
-                      ? "border-korma-gold/60 bg-korma-gold/10"
-                      : "border-white/10 bg-white/[0.03] hover:border-korma-gold/30"
-                  )}
-                >
-                  <div className="flex items-center justify-between gap-3">
-                    <h4 className="font-black text-white">{art.title}</h4>
-                    {selected && <Check className="h-4 w-4 text-korma-gold" />}
-                  </div>
-                  <p className="mt-2 text-sm leading-relaxed text-white/50">
-                    {art.description}
-                  </p>
-                </button>
-              );
-            })}
-          </div>
+      <div className="mt-8">
+        <h3 className="text-sm font-bold uppercase tracking-wider text-white">
+          Certification Profile
+        </h3>
+        <div className="mt-4 grid gap-3 md:grid-cols-2">
+          <InheritedRegistrationItem
+            icon={Award}
+            label="Requested Tracks"
+            value={draft.selectedServices
+              .map((serviceId) => getService(serviceId)?.title ?? serviceId)
+              .join(", ")}
+          />
+          <InheritedRegistrationItem
+            icon={Award}
+            label="Martial Arts"
+            value={draft.selectedArts
+              .map((artId) => getMartialArt(artId)?.title ?? artId)
+              .join(", ")}
+          />
+          <InheritedRegistrationItem
+            icon={History}
+            label="Current Rank"
+            value={draft.certificationProfile.currentRank}
+          />
+          <InheritedRegistrationItem
+            icon={Clock}
+            label="Years Training"
+            value={draft.certificationProfile.yearsTraining}
+          />
+          <InheritedRegistrationItem
+            icon={Building2}
+            label="Current Organization"
+            value={draft.certificationProfile.currentOrg}
+          />
+          <InheritedRegistrationItem
+            icon={GraduationCap}
+            label="Instructor"
+            value={draft.certificationProfile.instructorName}
+          />
         </div>
-      )}
+        {draft.certificationProfile.notes && (
+          <div className="mt-3 rounded-lg border border-white/10 bg-white/[0.03] px-4 py-3 text-sm leading-relaxed text-white/65">
+            {draft.certificationProfile.notes}
+          </div>
+        )}
+      </div>
 
       {needsRankLevel && (
         <div className="mt-10">
@@ -2082,9 +2289,32 @@ function ReviewStep({
       <SectionHeader
         eyebrow="Step 4"
         title="Review the draft"
-        description="This is the starting package for account verification, uploads, signatures, and final submission."
+        description="This combines the certification intake, KORMA-USA registration, and application details into the package that will be tracked in HubSpot."
       />
       <div className="mt-8 space-y-5">
+        <ReviewBlock
+          icon={Award}
+          title="Certification intake"
+          values={[
+            ...selectedServices.map((service) => service?.title ?? ""),
+            ...selectedArts.map((art) => art?.title ?? ""),
+            draft.certificationProfile.currentRank
+              ? `Current rank: ${draft.certificationProfile.currentRank}`
+              : "",
+            draft.certificationProfile.yearsTraining
+              ? `Years training: ${draft.certificationProfile.yearsTraining}`
+              : "",
+            draft.certificationProfile.currentOrg
+              ? `Organization: ${draft.certificationProfile.currentOrg}`
+              : "",
+            draft.certificationProfile.instructorName
+              ? `Instructor: ${draft.certificationProfile.instructorName}`
+              : "",
+            draft.certificationProfile.notes
+              ? `Notes: ${draft.certificationProfile.notes}`
+              : "",
+          ].filter(Boolean)}
+        />
         <ReviewBlock
           icon={UserCheck}
           title="Registration"
@@ -2120,11 +2350,6 @@ function ReviewStep({
           icon={FileText}
           title="Requested services"
           values={selectedServices.map((service) => service?.title ?? "")}
-        />
-        <ReviewBlock
-          icon={Award}
-          title="Martial arts"
-          values={selectedArts.map((art) => art?.title ?? "")}
         />
         {draft.selectedServices.includes("rank-registration") && (
           <ReviewBlock

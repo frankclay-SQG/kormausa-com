@@ -6,7 +6,7 @@ import { Navbar } from "@/components/navbar";
 export const metadata: Metadata = {
   title: "Apply | KORMA-USA",
   description:
-    "Start a KORMA-USA application for school registration, rank registration, or instructor certification.",
+    "Start with certification review, then complete the KORMA-USA application package for school registration, rank registration, or instructor certification.",
 };
 
 export default function ApplyPage() {
@@ -18,4 +18,3 @@ export default function ApplyPage() {
     </main>
   );
 }
-

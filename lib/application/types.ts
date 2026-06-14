@@ -66,6 +66,14 @@ export interface SchoolDraft {
   artsTaught: MartialArtId[];
 }
 
+export interface CertificationProfileDraft {
+  currentRank: string;
+  yearsTraining: string;
+  currentOrg: string;
+  instructorName: string;
+  notes: string;
+}
+
 export interface PromotionHistoryEntry {
   id: string;
   artId: MartialArtId | "";
@@ -115,6 +123,7 @@ export interface ApplicationDraft {
   registration: ApplicationRegistration;
   submitterName: string;
   submitterEmail: string;
+  certificationProfile: CertificationProfileDraft;
   selectedServices: ApplicationServiceId[];
   selectedArts: MartialArtId[];
   rankDanLevelId: DanLevelId | "";

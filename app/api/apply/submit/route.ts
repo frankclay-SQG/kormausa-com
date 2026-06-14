@@ -30,6 +30,7 @@ interface ApplySubmission {
   registration: RegistrationStatus;
   submitterName: string;
   submitterEmail: string;
+  certificationProfile: CertificationProfileStatus;
   selectedServices: ApplicationServiceId[];
   selectedArts: MartialArtId[];
   rankDanLevelId?: DanLevelId | "";
@@ -91,6 +92,14 @@ interface TestingEligibilityStatus {
   reminderStatus: "watch" | "eligible" | "not-ready";
   manualOverride: boolean;
   entryAboveFirst: boolean;
+  notes: string;
+}
+
+interface CertificationProfileStatus {
+  currentRank: string;
+  yearsTraining: string;
+  currentOrg: string;
+  instructorName: string;
   notes: string;
 }
 
@@ -196,6 +205,9 @@ async function readSubmission(req: NextRequest): Promise<ApplySubmission> {
     registration,
     submitterName: registration.name,
     submitterEmail: registration.email,
+    certificationProfile: normalizeCertificationProfile(
+      body.certificationProfile
+    ),
     selectedServices: normalizeArray<ApplicationServiceId>(body.selectedServices),
     selectedArts: normalizeArray<MartialArtId>(body.selectedArts),
     rankDanLevelId: body.rankDanLevelId ?? "",
@@ -222,6 +234,9 @@ function readMultipartSubmission(form: FormData): ApplySubmission {
     registration,
     submitterName: registration.name,
     submitterEmail: registration.email,
+    certificationProfile: normalizeCertificationProfile(
+      getJson(form, "certificationProfile", {})
+    ),
     selectedServices: parseFormArray<ApplicationServiceId>(form, "selectedServices"),
     selectedArts: parseFormArray<MartialArtId>(form, "selectedArts"),
     rankDanLevelId,
@@ -583,6 +598,33 @@ function buildPromotionHistoryNote(submission: ApplySubmission) {
     `Text Permission: ${submission.registration.allowTexts ? "YES" : "NO"}`,
     `Email Permission: ${submission.registration.allowEmails ? "YES" : "NO"}`,
     "",
+    "Certification Intake:",
+    submission.selectedServices.length
+      ? `Requested Tracks: ${submission.selectedServices
+          .map((serviceId) => getService(serviceId)?.title ?? serviceId)
+          .join(", ")}`
+      : "Requested Tracks: None selected",
+    submission.selectedArts.length
+      ? `Martial Arts: ${submission.selectedArts
+          .map((artId) => getMartialArt(artId)?.title ?? artId)
+          .join(", ")}`
+      : "Martial Arts: None selected",
+    submission.certificationProfile.currentRank
+      ? `Current Rank: ${submission.certificationProfile.currentRank}`
+      : null,
+    submission.certificationProfile.yearsTraining
+      ? `Years Training: ${submission.certificationProfile.yearsTraining}`
+      : null,
+    submission.certificationProfile.currentOrg
+      ? `Current Organization: ${submission.certificationProfile.currentOrg}`
+      : null,
+    submission.certificationProfile.instructorName
+      ? `Instructor: ${submission.certificationProfile.instructorName}`
+      : null,
+    submission.certificationProfile.notes
+      ? `Certification Notes: ${submission.certificationProfile.notes}`
+      : null,
+    "",
     "Promotion History:",
     ...(submission.promotionHistory.length
       ? submission.promotionHistory.map(formatPromotionHistoryLine)
@@ -636,14 +678,29 @@ function buildDealDescription(submission: ApplySubmission) {
     `Text Permission: ${submission.registration.allowTexts ? "YES" : "NO"}`,
     `Email Permission: ${submission.registration.allowEmails ? "YES" : "NO"}`,
     submission.selectedServices.length
-      ? `Services: ${submission.selectedServices
+      ? `Requested Tracks: ${submission.selectedServices
           .map((serviceId) => getService(serviceId)?.title ?? serviceId)
           .join(", ")}`
       : null,
     submission.selectedArts.length
-      ? `Arts: ${submission.selectedArts
+      ? `Martial Arts: ${submission.selectedArts
           .map((artId) => getMartialArt(artId)?.title ?? artId)
           .join(", ")}`
+      : null,
+    submission.certificationProfile.currentRank
+      ? `Current Rank: ${submission.certificationProfile.currentRank}`
+      : null,
+    submission.certificationProfile.yearsTraining
+      ? `Years Training: ${submission.certificationProfile.yearsTraining}`
+      : null,
+    submission.certificationProfile.currentOrg
+      ? `Current Organization: ${submission.certificationProfile.currentOrg}`
+      : null,
+    submission.certificationProfile.instructorName
+      ? `Instructor: ${submission.certificationProfile.instructorName}`
+      : null,
+    submission.certificationProfile.notes
+      ? `Certification Notes: ${submission.certificationProfile.notes}`
       : null,
     selectedDanLevel
       ? `Rank Registration Dan Level: ${selectedDanLevel.label}`
@@ -763,6 +820,26 @@ function normalizeEvidence(
       certificateFileNames: [],
     },
   ];
+}
+
+function normalizeCertificationProfile(
+  profile: unknown
+): CertificationProfileStatus {
+  const value =
+    profile && typeof profile === "object"
+      ? (profile as Partial<CertificationProfileStatus>)
+      : {};
+
+  return {
+    currentRank:
+      typeof value.currentRank === "string" ? value.currentRank : "",
+    yearsTraining:
+      typeof value.yearsTraining === "string" ? value.yearsTraining : "",
+    currentOrg: typeof value.currentOrg === "string" ? value.currentOrg : "",
+    instructorName:
+      typeof value.instructorName === "string" ? value.instructorName : "",
+    notes: typeof value.notes === "string" ? value.notes : "",
+  };
 }
 
 function normalizePromotionHistory(value: unknown): PromotionHistoryStatus[] {

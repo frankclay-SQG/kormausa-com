@@ -35,6 +35,13 @@ export function createApplicationDraft(
     },
     submitterName: "",
     submitterEmail: "",
+    certificationProfile: {
+      currentRank: "",
+      yearsTraining: "",
+      currentOrg: "",
+      instructorName: "",
+      notes: "",
+    },
     selectedServices: [],
     selectedArts: [],
     rankDanLevelId: "",
