@@ -53,9 +53,9 @@ const PROGRAMS: Program[] = [
   {
     id: "taekwondo",
     Icon: Shield,
-    label: "Taekwondo – Monthly",
+    label: "Taekwondo Changmookwan - Monthly",
     description:
-      "Traditional Korean striking art. High kicks, fast combinations, and discipline.",
+      "Changmookwan Taekwondo lineage. Forms, striking, fast combinations, and discipline.",
     price: 15000,
     priceLabel: "$150 / mo",
     type: "payment",
@@ -64,9 +64,9 @@ const PROGRAMS: Program[] = [
   {
     id: "hapkido",
     Icon: Shield,
-    label: "Hapkido – Monthly",
+    label: "Hapkido Migukyongkwan - Monthly",
     description:
-      "Joint locks, throws, and weapons defense. Redirecting force instead of meeting it.",
+      "Migukyongkwan Hapkido. Joint locks, throws, and redirecting force instead of meeting it.",
     price: 15000,
     priceLabel: "$150 / mo",
     type: "payment",
@@ -75,7 +75,7 @@ const PROGRAMS: Program[] = [
   {
     id: "kumdo",
     Icon: Sword,
-    label: "KumDo – Monthly",
+    label: "Kumdo - Monthly",
     description:
       "Korean sword art using bamboo shinai and wooden bokken practice swords.",
     price: 15000,

@@ -6,21 +6,21 @@ import { Menu, X, ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const navLinks = [
-  { label: "Home", href: "#home" },
+  { label: "Home", href: "/" },
   {
     label: "Programs",
-    href: "#programs",
+    href: "/#programs",
     children: [
-      { label: "Taekwondo", href: "#taekwondo" },
-      { label: "Hapkido", href: "#hapkido" },
-      { label: "Tai Chi", href: "#taichi" },
-      { label: "Self Defense", href: "#seminars" },
-      { label: "KumDo", href: "#kumdo" },
+      { label: "Taekwondo Changmookwan", href: "/#taekwondo" },
+      { label: "Hapkido Migukyongkwan", href: "/#hapkido" },
+      { label: "Self Defense", href: "/#seminars" },
+      { label: "Kumdo", href: "/#kumdo" },
     ],
   },
-  { label: "About", href: "#about" },
+  { label: "About", href: "/#about" },
+  { label: "Applications", href: "/applications" },
   { label: "Certification", href: "/certification" },
-  { label: "Contact", href: "#contact" },
+  { label: "Contact", href: "/#contact" },
 ];
 
 export function Navbar() {
@@ -45,13 +45,14 @@ export function Navbar() {
     >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 flex items-center justify-between">
         {/* Logo */}
-        <Link href="#home" className="flex items-center gap-3 group">
+        <Link href="/" className="flex items-center gap-3 group">
           <div className="relative w-12 h-12 flex-shrink-0">
             <Image
-                            src="/korma-logo.png"
+              src="/korma-usa-logo.svg"
               alt="KORMA-USA Logo"
               fill
               className="object-contain"
+              unoptimized
               sizes="48px"
             />
           </div>
@@ -60,7 +61,7 @@ export function Navbar() {
               KORMA-USA
             </span>
             <span className="block text-korma-gold text-[10px] tracking-[0.2em] uppercase">
-              Korean Martial Arts
+              Korean Martial Arts Association
             </span>
           </div>
         </Link>
@@ -145,7 +146,7 @@ export function Navbar() {
                   className="block py-2 pl-4 text-white/60 hover:text-korma-gold text-sm"
                   onClick={() => setMobileOpen(false)}
                 >
-                  âº {child.label}
+                  &gt; {child.label}
                 </Link>
               ))}
             </div>

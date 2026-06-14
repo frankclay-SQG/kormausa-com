@@ -1,0 +1,115 @@
+export type ApplicationServiceId =
+  | "school-registration"
+  | "rank-registration"
+  | "instructor-certification";
+
+export type MartialArtId = "taekwondo" | "hapkido" | "kumdo";
+
+export type DanLevelId =
+  | "1st-dan"
+  | "2nd-dan"
+  | "3rd-dan"
+  | "4th-dan"
+  | "5th-dan"
+  | "6th-dan"
+  | "7th-dan"
+  | "8th-dan"
+  | "9th-dan";
+
+export type DraftStatus = "new" | "draft" | "ready-for-review";
+
+export interface ApplicationService {
+  id: ApplicationServiceId;
+  title: string;
+  shortTitle: string;
+  description: string;
+  idealFor: string;
+  estimatedMinutes: number;
+  pricePlaceholder: string;
+  requiredArtifacts: string[];
+}
+
+export interface MartialArt {
+  id: MartialArtId;
+  title: string;
+  description: string;
+  rankLevels: string[];
+}
+
+export interface DanLevelCost {
+  id: DanLevelId;
+  label: string;
+  costPlaceholder: string;
+}
+
+export interface DanTestingRequirement {
+  targetDanLevelId: DanLevelId;
+  targetLabel: string;
+  requiredCurrentDanLevelId: DanLevelId | "";
+  requiredCurrentLabel: string;
+  minimumYearsAtCurrentRank: number;
+  description: string;
+}
+
+export interface CredentialDraft {
+  artId: MartialArtId;
+  currentRank: string;
+  issuingOrganization: string;
+  yearsTraining: string;
+}
+
+export interface SchoolDraft {
+  schoolName: string;
+  schoolType: "physical" | "mobile" | "online" | "hybrid" | "";
+  city: string;
+  state: string;
+  artsTaught: MartialArtId[];
+}
+
+export interface PromotionHistoryEntry {
+  id: string;
+  artId: MartialArtId | "";
+  rankLabel: string;
+  promotionDate: string;
+  certifyingInstructor: string;
+  certifyingOrganization: string;
+  certificateNumber: string;
+}
+
+export interface TestingEligibilityDraft {
+  targetDanLevelId: DanLevelId | "";
+  eligibleDate: string;
+  reminderStatus: "watch" | "eligible" | "not-ready";
+  manualOverride: boolean;
+  entryAboveFirst: boolean;
+  notes: string;
+}
+
+export interface ApplicationRegistration {
+  name: string;
+  addressLine1: string;
+  addressLine2: string;
+  city: string;
+  state: string;
+  postalCode: string;
+  phone: string;
+  email: string;
+  allowTexts: boolean;
+  allowEmails: boolean;
+}
+
+export interface ApplicationDraft {
+  id: string;
+  status: DraftStatus;
+  registration: ApplicationRegistration;
+  submitterName: string;
+  submitterEmail: string;
+  selectedServices: ApplicationServiceId[];
+  selectedArts: MartialArtId[];
+  rankDanLevelId: DanLevelId | "";
+  promotionHistory: PromotionHistoryEntry[];
+  testingEligibility: TestingEligibilityDraft;
+  credentials: CredentialDraft[];
+  school: SchoolDraft;
+  updatedAt: string;
+}

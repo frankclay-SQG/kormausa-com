@@ -5,7 +5,7 @@ import { EnrollForm } from "@/components/enroll-form";
 export const metadata: Metadata = {
   title: "Enroll | KORMA-USA",
   description:
-    "Join KORMA-USA and begin your martial arts journey. Monthly classes in Taekwondo, Hapkido, and KumDo. Free trial available.",
+    "Join KORMA-USA and begin your martial arts journey. Monthly classes in Taekwondo Changmookwan, Hapkido Migukyongkwan, and Kumdo. Free trial available.",
 };
 
 export default function EnrollPage() {

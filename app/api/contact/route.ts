@@ -15,7 +15,6 @@ function hsHeaders() {
 const INQUIRY_TYPE_MAP: Record<string, string> = {
   taekwondo: "regular_class",
   hapkido: "regular_class",
-  taichi: "regular_class",
   kumdo: "regular_class",
   "seminar-corporate": "seminar",
   "seminar-individual": "seminar",
@@ -23,10 +22,9 @@ const INQUIRY_TYPE_MAP: Record<string, string> = {
 
 // Human-readable labels for deal name
 const INTEREST_LABEL: Record<string, string> = {
-  taekwondo: "Taekwondo",
-  hapkido: "Hapkido",
-  taichi: "Tai Chi",
-  kumdo: "KumDo",
+  taekwondo: "Taekwondo Changmookwan",
+  hapkido: "Hapkido Migukyongkwan",
+  kumdo: "Kumdo",
   "seminar-corporate": "Corporate Seminar",
   "seminar-individual": "Individual Seminar",
   general: "General Inquiry",

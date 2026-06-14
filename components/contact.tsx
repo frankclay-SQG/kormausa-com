@@ -12,7 +12,7 @@ import {
   FileText,
 } from "lucide-react";
 
-const CLASS_OPTIONS = ["taekwondo", "hapkido", "taichi", "kumdo"];
+const CLASS_OPTIONS = ["taekwondo", "hapkido", "kumdo"];
 const SEMINAR_OPTIONS = ["seminar-corporate", "seminar-individual"];
 const MEETINGS_URL = "https://meetings-na2.hubspot.com/frank-clay";
 
@@ -228,10 +228,9 @@ export function Contact() {
                     >
                       <option value="" className="bg-korma-navy-deeper">Select a program</option>
                       <optgroup label="Regular Classes" className="bg-korma-navy-deeper">
-                        <option value="taekwondo" className="bg-korma-navy-deeper">Taekwondo</option>
-                        <option value="hapkido" className="bg-korma-navy-deeper">Hapkido</option>
-                        <option value="taichi" className="bg-korma-navy-deeper">Tai Chi</option>
-                        <option value="kumdo" className="bg-korma-navy-deeper">KumDo</option>
+                        <option value="taekwondo" className="bg-korma-navy-deeper">Taekwondo Changmookwan</option>
+                        <option value="hapkido" className="bg-korma-navy-deeper">Hapkido Migukyongkwan</option>
+                        <option value="kumdo" className="bg-korma-navy-deeper">Kumdo</option>
                       </optgroup>
                       <optgroup label="Self Defense Seminars" className="bg-korma-navy-deeper">
                         <option value="seminar-corporate" className="bg-korma-navy-deeper">Corporate Seminar</option>

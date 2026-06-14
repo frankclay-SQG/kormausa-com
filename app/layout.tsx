@@ -6,8 +6,8 @@ const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
 
 export const metadata: Metadata = {
   title: "KORMA-USA | Korean Martial Arts Association",
-  description: "The Korean Martial Arts Association of the USA — offering authentic KumDo, Hapkido, and Tai Chi instruction for all ages and skill levels.",
-  keywords: ["Korean martial arts", "KumDo", "Hapkido", "Tai Chi", "KORMA-USA", "martial arts classes"],
+  description: "The Korean Martial Arts Association of the USA — offering authentic Taekwondo Changmookwan, Hapkido Migukyongkwan, and Kumdo instruction for all ages and skill levels.",
+  keywords: ["Korean martial arts", "Taekwondo Changmookwan", "Hapkido Migukyongkwan", "Kumdo", "KORMA-USA", "martial arts classes"],
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

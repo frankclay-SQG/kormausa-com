@@ -36,9 +36,9 @@ const CERT_TYPES = [
 ];
 
 const DISCIPLINES = [
-  { id: "taekwondo", label: "Taekwondo" },
-  { id: "hapkido", label: "Hapkido" },
-  { id: "kumdo", label: "KumDo" },
+  { id: "taekwondo", label: "Taekwondo Changmookwan" },
+  { id: "hapkido", label: "Hapkido Migukyongkwan" },
+  { id: "kumdo", label: "Kumdo" },
 ];
 
 const RANKS = [
@@ -55,7 +55,10 @@ const RANKS = [
   "Black Belt – 3rd Dan",
   "Black Belt – 4th Dan",
   "Black Belt – 5th Dan",
-  "6th Dan+",
+  "Black Belt – 6th Dan",
+  "Black Belt – 7th Dan",
+  "Black Belt – 8th Dan",
+  "Black Belt – 9th Dan",
 ];
 
 const YEARS_OPTIONS = [
@@ -326,7 +329,7 @@ export function CertificationForm() {
                       name="schoolName"
                       value={form.schoolName}
                       onChange={handleChange}
-                      placeholder="Virginia Taekwondo Academy"
+                      placeholder="Virginia Changmookwan Academy"
                       className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg text-white placeholder-white/25 text-sm focus:outline-none focus:border-korma-gold/50 transition-colors"
                     />
                   </motion.div>
@@ -421,7 +424,7 @@ export function CertificationForm() {
                   name="currentOrg"
                   value={form.currentOrg}
                   onChange={handleChange}
-                  placeholder="e.g. World Taekwondo, ITF, WTF, independent…"
+                  placeholder="e.g. Changmookwan, Migukyongkwan, KORMA-USA"
                   className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg text-white placeholder-white/25 text-sm focus:outline-none focus:border-korma-gold/50 transition-colors"
                 />
               </div>
