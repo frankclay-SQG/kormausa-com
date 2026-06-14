@@ -11,6 +11,8 @@ import {
   Calendar,
   FileText,
 } from "lucide-react";
+import { DuplicateConfirmationDialog } from "@/components/duplicate-confirmation-dialog";
+import type { HubSpotDuplicateCandidate } from "@/lib/hubspot/contacts";
 
 const CLASS_OPTIONS = ["taekwondo", "hapkido", "kumdo"];
 const SEMINAR_OPTIONS = ["seminar-corporate", "seminar-individual"];
@@ -20,6 +22,7 @@ export function Contact() {
   const [submitted, setSubmitted] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [duplicates, setDuplicates] = useState<HubSpotDuplicateCandidate[]>([]);
   const [form, setForm] = useState({
     name: "", email: "", phone: "", interest: "", message: "",
     experience: "", schedule: "",
@@ -29,17 +32,21 @@ export function Contact() {
   const isClass = CLASS_OPTIONS.includes(form.interest);
   const isSeminar = SEMINAR_OPTIONS.includes(form.interest);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const submitForm = async (duplicateConfirmed = false) => {
     setLoading(true);
     setError("");
     try {
       const res = await fetch("/api/contact", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(form),
+        body: JSON.stringify({ ...form, duplicateConfirmed }),
       });
-      if (!res.ok) throw new Error("Submission failed");
+      const result = await res.json();
+      if (res.status === 409 && result.errorCode === "POTENTIAL_DUPLICATE") {
+        setDuplicates(result.duplicates ?? []);
+        return;
+      }
+      if (!res.ok) throw new Error(result.error ?? "Submission failed");
       setSubmitted(true);
     } catch {
       setError(
@@ -48,6 +55,11 @@ export function Contact() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    await submitForm(false);
   };
 
   const handleChange = (
@@ -359,6 +371,15 @@ export function Contact() {
           </motion.div>
         </div>
       </div>
+      <DuplicateConfirmationDialog
+        open={duplicates.length > 0}
+        duplicates={duplicates}
+        onCancel={() => setDuplicates([])}
+        onConfirm={() => {
+          setDuplicates([]);
+          void submitForm(true);
+        }}
+      />
     </section>
   );
 }

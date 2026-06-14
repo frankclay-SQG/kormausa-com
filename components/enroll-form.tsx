@@ -21,6 +21,8 @@ import {
   X,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { DuplicateConfirmationDialog } from "@/components/duplicate-confirmation-dialog";
+import type { HubSpotDuplicateCandidate } from "@/lib/hubspot/contacts";
 
 // ── Program catalog ───────────────────────────────────────────────────────
 
@@ -187,6 +189,7 @@ export function EnrollForm() {
   const [success, setSuccess] = useState<
     null | { type: "free"; meetingUrl: string } | { type: "quote" }
   >(null);
+  const [duplicates, setDuplicates] = useState<HubSpotDuplicateCandidate[]>([]);
 
   // ── Discount state ────────────────────────────────────────────────────
   const [showDiscountInput, setShowDiscountInput] = useState(false);
@@ -278,7 +281,7 @@ export function EnrollForm() {
   }
 
   // ── Submit ────────────────────────────────────────────────────────────
-  async function handleSubmit() {
+  async function handleSubmit(duplicateConfirmed = false) {
     if (!selectedProgram) return;
     setIsSubmitting(true);
     setError(null);
@@ -299,10 +302,16 @@ export function EnrollForm() {
           participants: form.participants,
           message: form.message,
           promotionCodeId: appliedDiscount?.promotionCodeId ?? null,
+          duplicateConfirmed,
         }),
       });
 
       const data = await res.json();
+
+      if (res.status === 409 && data.errorCode === "POTENTIAL_DUPLICATE") {
+        setDuplicates(data.duplicates ?? []);
+        return;
+      }
 
       if (!res.ok) {
         setError(data.error ?? "Something went wrong. Please try again.");
@@ -331,6 +340,7 @@ export function EnrollForm() {
   // ── Success screens ────────────────────────────────────────────────────
   if (success) {
     return (
+      <>
       <section className="pt-32 pb-24 px-4 flex flex-col items-center text-center">
         <motion.div
           initial={{ scale: 0.8, opacity: 0 }}
@@ -385,11 +395,22 @@ export function EnrollForm() {
           )}
         </motion.div>
       </section>
+      <DuplicateConfirmationDialog
+        open={duplicates.length > 0}
+        duplicates={duplicates}
+        onCancel={() => setDuplicates([])}
+        onConfirm={() => {
+          setDuplicates([]);
+          void handleSubmit(true);
+        }}
+      />
+      </>
     );
   }
 
   // ── Step panels ────────────────────────────────────────────────────────
   return (
+    <>
     <section className="pt-28 pb-24 px-4">
       {/* Hero */}
       <div className="text-center mb-12">
@@ -837,7 +858,7 @@ export function EnrollForm() {
                 )}
 
                 <button
-                  onClick={handleSubmit}
+                  onClick={() => void handleSubmit(false)}
                   disabled={isSubmitting}
                   className={cn(
                     "w-full flex items-center justify-center gap-2 py-4 text-sm font-bold uppercase tracking-wider transition-all",
@@ -882,5 +903,15 @@ export function EnrollForm() {
         </AnimatePresence>
       </div>
     </section>
+    <DuplicateConfirmationDialog
+      open={duplicates.length > 0}
+      duplicates={duplicates}
+      onCancel={() => setDuplicates([])}
+      onConfirm={() => {
+        setDuplicates([]);
+        void handleSubmit(true);
+      }}
+    />
+    </>
   );
 }

@@ -1,4 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
+import {
+  createHubSpotHeaders,
+  ensureHubSpotContact,
+} from "@/lib/hubspot/contacts";
 
 const HS_BASE = "https://api.hubapi.com";
 
@@ -23,63 +27,39 @@ export async function POST(req: NextRequest) {
     signatureName,
     signatureDate,
     isMinor,
+    duplicateConfirmed,
   } = body;
 
-  const headers = {
-    Authorization: `Bearer ${token}`,
-    "Content-Type": "application/json",
-  };
+  const headers = createHubSpotHeaders(token);
 
-  // ── 1. Create or find contact ────────────────────────────────────────────
-  let contactId: string;
-
-  const contactRes = await fetch(`${HS_BASE}/crm/v3/objects/contacts`, {
-    method: "POST",
-    headers,
-    body: JSON.stringify({
-      properties: {
-        firstname: firstName,
-        lastname: lastName,
-        email,
-        phone: phone ?? "",
-      },
-    }),
+  // ── 1. Create or resolve contact ─────────────────────────────────────────
+  const contactResult = await ensureHubSpotContact({
+    token,
+    firstName,
+    lastName,
+    email,
+    phone: phone ?? "",
+    duplicateConfirmed:
+      duplicateConfirmed === true || duplicateConfirmed === "true",
+    properties: {
+      firstname: firstName,
+      lastname: lastName,
+      email,
+      phone: phone ?? "",
+    },
   });
 
-  if (contactRes.status === 409) {
-    // Duplicate email — look up existing contact
-    const searchRes = await fetch(
-      `${HS_BASE}/crm/v3/objects/contacts/search`,
-      {
-        method: "POST",
-        headers,
-        body: JSON.stringify({
-          filterGroups: [
-            {
-              filters: [
-                { propertyName: "email", operator: "EQ", value: email },
-              ],
-            },
-          ],
-          limit: 1,
-        }),
-      }
-    );
-    const searchData = await searchRes.json();
-    contactId = searchData.results?.[0]?.id;
-    if (!contactId)
-      return NextResponse.json(
-        { error: "Contact lookup failed" },
-        { status: 500 }
-      );
-  } else if (!contactRes.ok) {
+  if (contactResult.status === "potential-duplicate") {
     return NextResponse.json(
-      { error: "Contact creation failed" },
-      { status: 500 }
+      {
+        error: "Potential duplicate contact found",
+        errorCode: "POTENTIAL_DUPLICATE",
+        duplicates: contactResult.duplicates,
+      },
+      { status: 409 }
     );
-  } else {
-    contactId = (await contactRes.json()).id;
   }
+  const contactId = contactResult.contactId;
 
   // ── 2. Build waiver note body ───────────────────────────────────────────
   const noteBody = [

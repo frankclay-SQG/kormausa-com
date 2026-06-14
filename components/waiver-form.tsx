@@ -11,6 +11,8 @@ import {
   PenLine,
   User,
 } from "lucide-react";
+import { DuplicateConfirmationDialog } from "@/components/duplicate-confirmation-dialog";
+import type { HubSpotDuplicateCandidate } from "@/lib/hubspot/contacts";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Waiver content
@@ -182,6 +184,7 @@ export function WaiverForm() {
   const [submitted, setSubmitted] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [duplicates, setDuplicates] = useState<HubSpotDuplicateCandidate[]>([]);
   const [form, setForm] = useState<FormState>(INITIAL);
 
   const age = getAge(form.dateOfBirth);
@@ -195,16 +198,21 @@ export function WaiverForm() {
     setForm((prev) => ({ ...prev, [t.name]: value }));
   };
 
-  const handleSubmit = async () => {
+  const submitWaiver = async (duplicateConfirmed = false) => {
     setLoading(true);
     setError("");
     try {
       const res = await fetch("/api/waiver", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...form, isMinor }),
+        body: JSON.stringify({ ...form, isMinor, duplicateConfirmed }),
       });
-      if (!res.ok) throw new Error("failed");
+      const result = await res.json();
+      if (res.status === 409 && result.errorCode === "POTENTIAL_DUPLICATE") {
+        setDuplicates(result.duplicates ?? []);
+        return;
+      }
+      if (!res.ok) throw new Error(result.error ?? "failed");
       setSubmitted(true);
     } catch {
       setError(
@@ -215,11 +223,16 @@ export function WaiverForm() {
     }
   };
 
+  const handleSubmit = async () => {
+    await submitWaiver(false);
+  };
+
   // ── Success screen ───────────────────────────────────────────────────────────
   if (submitted) {
     const signerName = isMinor ? form.guardianSignature : form.signatureName;
     const participantName = `${form.firstName} ${form.lastName}`.trim();
     return (
+      <>
       <section className="min-h-screen flex items-center justify-center px-4 pt-32 pb-20">
         <motion.div
           initial={{ opacity: 0, scale: 0.95 }}
@@ -265,10 +278,21 @@ export function WaiverForm() {
           </p>
         </motion.div>
       </section>
+      <DuplicateConfirmationDialog
+        open={duplicates.length > 0}
+        duplicates={duplicates}
+        onCancel={() => setDuplicates([])}
+        onConfirm={() => {
+          setDuplicates([]);
+          void submitWaiver(true);
+        }}
+      />
+      </>
     );
   }
 
   return (
+    <>
     <div className="min-h-screen pt-28 pb-20 px-4">
       <div className="max-w-2xl mx-auto">
         {/* Page header */}
@@ -759,5 +783,15 @@ export function WaiverForm() {
         </AnimatePresence>
       </div>
     </div>
+    <DuplicateConfirmationDialog
+      open={duplicates.length > 0}
+      duplicates={duplicates}
+      onCancel={() => setDuplicates([])}
+      onConfirm={() => {
+        setDuplicates([]);
+        void submitWaiver(true);
+      }}
+    />
+    </>
   );
 }

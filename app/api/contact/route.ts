@@ -1,15 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
+import {
+  createHubSpotHeaders,
+  ensureHubSpotContact,
+  splitName,
+} from "@/lib/hubspot/contacts";
 
 const HS_BASE = "https://api.hubapi.com";
 const PIPELINE_ID = "default";
 const STAGE_ID = "appointmentscheduled"; // "New Inquiry"
-
-function hsHeaders() {
-  return {
-    Authorization: `Bearer ${process.env.HUBSPOT_ACCESS_TOKEN}`,
-    "Content-Type": "application/json",
-  };
-}
 
 // Map interest values → korma_inquiry_type enum value
 const INQUIRY_TYPE_MAP: Record<string, string> = {
@@ -32,7 +30,19 @@ const INTEREST_LABEL: Record<string, string> = {
 
 export async function POST(req: NextRequest) {
   try {
-    const body = await req.json();
+    const body = (await req.json()) as {
+      name: string;
+      email: string;
+      phone: string;
+      interest: string;
+      message: string;
+      experience: string;
+      schedule: string;
+      organization: string;
+      groupSize: string;
+      preferredDate: string;
+      duplicateConfirmed?: boolean;
+    };
     const {
       name,
       email,
@@ -44,7 +54,8 @@ export async function POST(req: NextRequest) {
       organization,
       groupSize,
       preferredDate,
-    } = body as Record<string, string>;
+      duplicateConfirmed,
+    } = body;
 
     const token = process.env.HUBSPOT_ACCESS_TOKEN;
     if (!token) {
@@ -55,10 +66,8 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // ── 1. Create contact (handle duplicate 409) ──────────────────────────
-    const nameParts = (name ?? "").trim().split(" ");
-    const firstName = nameParts[0] ?? "";
-    const lastName = nameParts.slice(1).join(" ");
+    // ── 1. Create or resolve contact with duplicate handling ──────────────
+    const { firstName, lastName } = splitName(name ?? "");
 
     const inquiryType = INQUIRY_TYPE_MAP[interest] ?? null;
 
@@ -70,63 +79,28 @@ export async function POST(req: NextRequest) {
     };
     if (inquiryType) contactProps.korma_inquiry_type = inquiryType;
 
-    let contactId: string | undefined;
-
-    const createContactRes = await fetch(`${HS_BASE}/crm/v3/objects/contacts`, {
-      method: "POST",
-      headers: hsHeaders(),
-      body: JSON.stringify({ properties: contactProps }),
+    const contactResult = await ensureHubSpotContact({
+      token,
+      firstName,
+      lastName,
+      email,
+      phone: phone ?? "",
+      duplicateConfirmed:
+        duplicateConfirmed === true || duplicateConfirmed === "true",
+      properties: contactProps,
     });
 
-    if (createContactRes.status === 409) {
-      // Contact already exists — find by email
-      const searchRes = await fetch(
-        `${HS_BASE}/crm/v3/objects/contacts/search`,
-        {
-          method: "POST",
-          headers: hsHeaders(),
-          body: JSON.stringify({
-            filterGroups: [
-              {
-                filters: [
-                  { propertyName: "email", operator: "EQ", value: email },
-                ],
-              },
-            ],
-            properties: ["hs_object_id"],
-            limit: 1,
-          }),
-        }
-      );
-      const searchData = (await searchRes.json()) as {
-        results?: Array<{ id: string }>;
-      };
-      contactId = searchData.results?.[0]?.id;
-
-      // Update inquiry type on existing contact if applicable
-      if (contactId && inquiryType) {
-        await fetch(
-          `${HS_BASE}/crm/v3/objects/contacts/${contactId}`,
-          {
-            method: "PATCH",
-            headers: hsHeaders(),
-            body: JSON.stringify({
-              properties: { korma_inquiry_type: inquiryType },
-            }),
-          }
-        );
-      }
-    } else {
-      const contactData = (await createContactRes.json()) as { id?: string };
-      contactId = contactData.id;
-    }
-
-    if (!contactId) {
+    if (contactResult.status === "potential-duplicate") {
       return NextResponse.json(
-        { error: "Could not create or locate contact" },
-        { status: 500 }
+        {
+          error: "Potential duplicate contact found",
+          errorCode: "POTENTIAL_DUPLICATE",
+          duplicates: contactResult.duplicates,
+        },
+        { status: 409 }
       );
     }
+    const contactId = contactResult.contactId;
 
     // ── 2. Build deal description from all submitted fields ───────────────
     const interestLabel = INTEREST_LABEL[interest] ?? interest ?? "General";
@@ -148,7 +122,7 @@ export async function POST(req: NextRequest) {
 
     const createDealRes = await fetch(`${HS_BASE}/crm/v3/objects/deals`, {
       method: "POST",
-      headers: hsHeaders(),
+      headers: createHubSpotHeaders(token),
       body: JSON.stringify({
         properties: {
           dealname: dealName,
@@ -175,7 +149,7 @@ export async function POST(req: NextRequest) {
       `${HS_BASE}/crm/v4/objects/deals/${dealId}/associations/contacts/${contactId}/batch/create`,
       {
         method: "POST",
-        headers: hsHeaders(),
+        headers: createHubSpotHeaders(token),
         body: JSON.stringify({
           inputs: [
             { associationCategory: "HUBSPOT_DEFINED", associationTypeId: 3 },

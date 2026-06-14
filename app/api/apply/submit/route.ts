@@ -15,6 +15,12 @@ import {
   hasGoogleMapsKey,
   validateGoogleAddress,
 } from "@/lib/application/google-address";
+import {
+  createHubSpotHeaders,
+  ensureHubSpotContact,
+  type HubSpotDuplicateCandidate,
+  splitName,
+} from "@/lib/hubspot/contacts";
 
 const HS_BASE = "https://api.hubapi.com";
 const PIPELINE_ID = "default";
@@ -31,6 +37,7 @@ interface ApplySubmission {
   submitterName: string;
   submitterEmail: string;
   certificationProfile: CertificationProfileStatus;
+  duplicateConfirmed?: boolean;
   selectedServices: ApplicationServiceId[];
   selectedArts: MartialArtId[];
   rankDanLevelId?: DanLevelId | "";
@@ -137,10 +144,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const headers = {
-      Authorization: `Bearer ${token}`,
-      "Content-Type": "application/json",
-    };
+    const headers = createHubSpotHeaders(token);
 
     const contactId = await createOrFindContact(submission, headers);
     if (!contactId) {
@@ -181,11 +185,27 @@ export async function POST(req: NextRequest) {
       trackedPromotionHistory: submission.promotionHistory,
     });
   } catch (error) {
+    if (error instanceof PotentialDuplicateError) {
+      return NextResponse.json(
+        {
+          error: "Potential duplicate contact found",
+          errorCode: "POTENTIAL_DUPLICATE",
+          duplicates: error.duplicates,
+        },
+        { status: 409 }
+      );
+    }
     console.error("Application HubSpot submission error:", error);
     return NextResponse.json(
       { error: "Internal server error" },
       { status: 500 }
     );
+  }
+}
+
+class PotentialDuplicateError extends Error {
+  constructor(public duplicates: HubSpotDuplicateCandidate[]) {
+    super("Potential duplicate contact found");
   }
 }
 
@@ -208,6 +228,7 @@ async function readSubmission(req: NextRequest): Promise<ApplySubmission> {
     certificationProfile: normalizeCertificationProfile(
       body.certificationProfile
     ),
+    duplicateConfirmed: Boolean(body.duplicateConfirmed),
     selectedServices: normalizeArray<ApplicationServiceId>(body.selectedServices),
     selectedArts: normalizeArray<MartialArtId>(body.selectedArts),
     rankDanLevelId: body.rankDanLevelId ?? "",
@@ -237,6 +258,9 @@ function readMultipartSubmission(form: FormData): ApplySubmission {
     certificationProfile: normalizeCertificationProfile(
       getJson(form, "certificationProfile", {})
     ),
+    duplicateConfirmed:
+      getText(form, "duplicateConfirmed") === "true" ||
+      getText(form, "duplicateConfirmed") === "1",
     selectedServices: parseFormArray<ApplicationServiceId>(form, "selectedServices"),
     selectedArts: parseFormArray<MartialArtId>(form, "selectedArts"),
     rankDanLevelId,
@@ -325,94 +349,46 @@ async function getAddressValidationError(submission: ApplySubmission) {
 
 async function createOrFindContact(
   submission: ApplySubmission,
-  headers: Record<string, string>
+  _headers: Record<string, string>
 ) {
-  const nameParts = submission.submitterName.trim().split(" ");
-  const firstname = nameParts[0] ?? "";
-  const lastname = nameParts.slice(1).join(" ");
+  const token = process.env.HUBSPOT_ACCESS_TOKEN;
+  if (!token) return undefined;
 
-  const contactRes = await fetch(`${HS_BASE}/crm/v3/objects/contacts`, {
-    method: "POST",
-    headers,
-    body: JSON.stringify({
-      properties: {
-        firstname,
-        lastname,
-        email: submission.submitterEmail,
-        phone: submission.registration.phone,
-        address: [
-          submission.registration.addressLine1,
-          submission.registration.addressLine2,
-        ]
-          .filter(Boolean)
-          .join(", "),
-        city: submission.registration.city,
-        state: submission.registration.state,
-        zip: submission.registration.postalCode,
-        korma_inquiry_type: "certification",
-      },
-    }),
+  const { firstName: firstname, lastName: lastname } = splitName(
+    submission.submitterName
+  );
+  const properties = {
+    firstname,
+    lastname,
+    email: submission.submitterEmail,
+    phone: submission.registration.phone,
+    address: [
+      submission.registration.addressLine1,
+      submission.registration.addressLine2,
+    ]
+      .filter(Boolean)
+      .join(", "),
+    city: submission.registration.city,
+    state: submission.registration.state,
+    zip: submission.registration.postalCode,
+    korma_inquiry_type: "certification",
+  };
+
+  const result = await ensureHubSpotContact({
+    token,
+    firstName: firstname,
+    lastName: lastname,
+    email: submission.submitterEmail,
+    phone: submission.registration.phone,
+    duplicateConfirmed: submission.duplicateConfirmed,
+    properties,
   });
 
-  if (contactRes.status === 409) {
-    const searchRes = await fetch(`${HS_BASE}/crm/v3/objects/contacts/search`, {
-      method: "POST",
-      headers,
-      body: JSON.stringify({
-        filterGroups: [
-          {
-            filters: [
-              {
-                propertyName: "email",
-                operator: "EQ",
-                value: submission.submitterEmail,
-              },
-            ],
-          },
-        ],
-        properties: ["email"],
-        limit: 1,
-      }),
-    });
-    const searchData = (await searchRes.json()) as {
-      results?: Array<{ id: string }>;
-    };
-    const contactId = searchData.results?.[0]?.id;
-    if (contactId) {
-      await updateContactRegistration(contactId, submission, headers);
-    }
-    return contactId;
+  if (result.status === "potential-duplicate") {
+    throw new PotentialDuplicateError(result.duplicates);
   }
 
-  if (!contactRes.ok) return undefined;
-  const contact = (await contactRes.json()) as { id?: string };
-  return contact.id;
-}
-
-async function updateContactRegistration(
-  contactId: string,
-  submission: ApplySubmission,
-  headers: Record<string, string>
-) {
-  await fetch(`${HS_BASE}/crm/v3/objects/contacts/${contactId}`, {
-    method: "PATCH",
-    headers,
-    body: JSON.stringify({
-      properties: {
-        phone: submission.registration.phone,
-        address: [
-          submission.registration.addressLine1,
-          submission.registration.addressLine2,
-        ]
-          .filter(Boolean)
-          .join(", "),
-        city: submission.registration.city,
-        state: submission.registration.state,
-        zip: submission.registration.postalCode,
-        korma_inquiry_type: "certification",
-      },
-    }),
-  });
+  return result.contactId;
 }
 
 async function createApplicationDeal(

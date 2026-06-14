@@ -1,4 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
+import {
+  createHubSpotHeaders,
+  ensureHubSpotContact,
+  splitName,
+} from "@/lib/hubspot/contacts";
 
 const HS_BASE = "https://api.hubapi.com";
 const PIPELINE_ID = "default";
@@ -22,75 +27,41 @@ export async function POST(req: NextRequest) {
     instructorName,
     schoolName,
     message,
+    duplicateConfirmed,
   } = body;
 
-  const headers = {
-    Authorization: `Bearer ${token}`,
-    "Content-Type": "application/json",
-  };
+  const headers = createHubSpotHeaders(token);
 
-  // ── 1. Create or find contact ────────────────────────────────────────────
-  let contactId: string;
-
-  const contactRes = await fetch(`${HS_BASE}/crm/v3/objects/contacts`, {
-    method: "POST",
-    headers,
-    body: JSON.stringify({
-      properties: {
-        firstname: name.split(" ")[0] ?? name,
-        lastname: name.split(" ").slice(1).join(" ") ?? "",
-        email,
-        phone: phone ?? "",
-        korma_inquiry_type: "certification",
-      },
-    }),
+  // ── 1. Create or resolve contact ─────────────────────────────────────────
+  const { firstName, lastName } = splitName(name ?? "");
+  const contactResult = await ensureHubSpotContact({
+    token,
+    firstName,
+    lastName,
+    email,
+    phone: phone ?? "",
+    duplicateConfirmed:
+      duplicateConfirmed === true || duplicateConfirmed === "true",
+    properties: {
+      firstname: firstName,
+      lastname: lastName,
+      email,
+      phone: phone ?? "",
+      korma_inquiry_type: "certification",
+    },
   });
 
-  if (contactRes.status === 409) {
-    // Duplicate email — look up existing contact
-    const searchRes = await fetch(
-      `${HS_BASE}/crm/v3/objects/contacts/search`,
-      {
-        method: "POST",
-        headers,
-        body: JSON.stringify({
-          filterGroups: [
-            {
-              filters: [
-                { propertyName: "email", operator: "EQ", value: email },
-              ],
-            },
-          ],
-          properties: ["email", "korma_inquiry_type"],
-          limit: 1,
-        }),
-      }
-    );
-    const searchData = await searchRes.json();
-    contactId = searchData.results?.[0]?.id;
-    if (!contactId)
-      return NextResponse.json(
-        { error: "Contact lookup failed" },
-        { status: 500 }
-      );
-    // Patch inquiry type on existing contact
-    await fetch(`${HS_BASE}/crm/v3/objects/contacts/${contactId}`, {
-      method: "PATCH",
-      headers,
-      body: JSON.stringify({
-        properties: { korma_inquiry_type: "certification" },
-      }),
-    });
-  } else if (!contactRes.ok) {
-    const err = await contactRes.json();
+  if (contactResult.status === "potential-duplicate") {
     return NextResponse.json(
-      { error: "Contact creation failed", detail: err },
-      { status: 500 }
+      {
+        error: "Potential duplicate contact found",
+        errorCode: "POTENTIAL_DUPLICATE",
+        duplicates: contactResult.duplicates,
+      },
+      { status: 409 }
     );
-  } else {
-    const contactData = await contactRes.json();
-    contactId = contactData.id;
   }
+  const contactId = contactResult.contactId;
 
   // ── 2. Build deal description ────────────────────────────────────────────
   const descLines = [

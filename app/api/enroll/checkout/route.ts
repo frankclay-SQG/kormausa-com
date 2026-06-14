@@ -1,4 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
+import {
+  createHubSpotHeaders,
+  ensureHubSpotContact,
+  splitName,
+} from "@/lib/hubspot/contacts";
 
 const HS_BASE = "https://api.hubapi.com";
 const STRIPE_BASE = "https://api.stripe.com/v1";
@@ -26,6 +31,7 @@ export async function POST(req: NextRequest) {
     participants,
     message,
     promotionCodeId,   // ← optional: validated Stripe promo code ID
+    duplicateConfirmed,
   }: {
     programId: string;
     programLabel: string;
@@ -38,60 +44,40 @@ export async function POST(req: NextRequest) {
     participants: string;
     message: string;
     promotionCodeId?: string | null;
+    duplicateConfirmed?: boolean;
   } = body;
 
-  const headers = {
-    Authorization: `Bearer ${hsToken}`,
-    "Content-Type": "application/json",
-  };
+  const headers = createHubSpotHeaders(hsToken);
 
-  // ── 1. Create or find HubSpot contact ───────────────────────────────────
-  let contactId: string;
-
-  const contactRes = await fetch(`${HS_BASE}/crm/v3/objects/contacts`, {
-    method: "POST",
-    headers,
-    body: JSON.stringify({
-      properties: {
-        firstname: name.split(" ")[0] ?? name,
-        lastname: name.split(" ").slice(1).join(" ") ?? "",
-        email,
-        phone: phone ?? "",
-        korma_inquiry_type: inquiryType,
-      },
-    }),
+  // ── 1. Create or resolve HubSpot contact ────────────────────────────────
+  const { firstName, lastName } = splitName(name);
+  const contactResult = await ensureHubSpotContact({
+    token: hsToken,
+    firstName,
+    lastName,
+    email,
+    phone: phone ?? "",
+    duplicateConfirmed,
+    properties: {
+      firstname: firstName,
+      lastname: lastName,
+      email,
+      phone: phone ?? "",
+      korma_inquiry_type: inquiryType,
+    },
   });
 
-  if (contactRes.status === 409) {
-    const searchRes = await fetch(`${HS_BASE}/crm/v3/objects/contacts/search`, {
-      method: "POST",
-      headers,
-      body: JSON.stringify({
-        filterGroups: [
-          { filters: [{ propertyName: "email", operator: "EQ", value: email }] },
-        ],
-        properties: ["email", "korma_inquiry_type"],
-        limit: 1,
-      }),
-    });
-    const searchData = await searchRes.json();
-    contactId = searchData.results?.[0]?.id;
-    if (!contactId)
-      return NextResponse.json({ error: "Contact lookup failed" }, { status: 500 });
-    await fetch(`${HS_BASE}/crm/v3/objects/contacts/${contactId}`, {
-      method: "PATCH",
-      headers,
-      body: JSON.stringify({ properties: { korma_inquiry_type: inquiryType } }),
-    });
-  } else if (!contactRes.ok) {
-    const err = await contactRes.json();
+  if (contactResult.status === "potential-duplicate") {
     return NextResponse.json(
-      { error: "Contact creation failed", detail: err },
-      { status: 500 }
+      {
+        error: "Potential duplicate contact found",
+        errorCode: "POTENTIAL_DUPLICATE",
+        duplicates: contactResult.duplicates,
+      },
+      { status: 409 }
     );
-  } else {
-    contactId = (await contactRes.json()).id;
   }
+  const contactId = contactResult.contactId;
 
   // ── 2. Free trial or quote → HubSpot deal + no Stripe ───────────────────
   if (programType === "free" || programType === "quote") {
