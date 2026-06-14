@@ -363,7 +363,7 @@ export function ApplicationBuilder() {
             </span>
           </div>
           <h1 className="max-w-4xl text-4xl font-black leading-tight tracking-tight text-white sm:text-5xl">
-            Start one application for school, rank, and instructor review.
+            Ready to Start the Process?
           </h1>
           <p className="mt-5 max-w-2xl text-base leading-relaxed text-white/55 sm:text-lg">
             Select the services you need, add the martial arts involved, and
@@ -806,7 +806,7 @@ function RegistrationStep({
     <section>
       <SectionHeader
         eyebrow="Step 1"
-        title="Association Registration"
+        title="KORMA-USA Registration"
         description="Registration is required before starting an application. These details are inherited into the application package, billing, and HubSpot tracking."
       />
 
