@@ -92,6 +92,17 @@ export interface ApplicationRegistration {
   city: string;
   state: string;
   postalCode: string;
+  formattedAddress: string;
+  googlePlaceId: string;
+  googleMapsUri: string;
+  addressValidationStatus:
+    | "unverified"
+    | "validating"
+    | "validated"
+    | "needs-review"
+    | "not-configured";
+  addressValidationMessage: string;
+  addressValidatedAt: string;
   phone: string;
   email: string;
   allowTexts: boolean;

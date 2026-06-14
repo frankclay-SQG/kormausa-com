@@ -22,6 +22,12 @@ export function createApplicationDraft(
       city: "",
       state: "VA",
       postalCode: "",
+      formattedAddress: "",
+      googlePlaceId: "",
+      googleMapsUri: "",
+      addressValidationStatus: "unverified",
+      addressValidationMessage: "",
+      addressValidatedAt: "",
       phone: "",
       email: "",
       allowTexts: false,
@@ -120,6 +126,7 @@ export function isRegistrationComplete(registration: ApplicationRegistration) {
       registration.city.trim() &&
       registration.state.trim() &&
       registration.postalCode.trim() &&
+      registration.addressValidationStatus === "validated" &&
       registration.phone.trim() &&
       isValidSubmitterEmail(registration.email) &&
       registration.allowTexts &&
@@ -169,9 +176,26 @@ export function updateRegistration(
   field: keyof ApplicationRegistration,
   value: string | boolean
 ): ApplicationDraft {
+  const shouldResetAddressValidation = [
+    "addressLine1",
+    "addressLine2",
+    "city",
+    "state",
+    "postalCode",
+  ].includes(field);
   const registration = {
     ...draft.registration,
     [field]: value,
+    ...(shouldResetAddressValidation
+      ? {
+          formattedAddress: "",
+          googlePlaceId: "",
+          googleMapsUri: "",
+          addressValidationStatus: "unverified" as const,
+          addressValidationMessage: "",
+          addressValidatedAt: "",
+        }
+      : {}),
   };
 
   return markUpdated({

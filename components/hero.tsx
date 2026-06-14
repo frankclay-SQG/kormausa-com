@@ -13,7 +13,7 @@ export function Hero() {
       <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 py-32 flex flex-col lg:flex-row items-center gap-16">
         <motion.div className="flex-1 text-center lg:text-left" initial={{ opacity: 0, y: 40 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.8, ease: "easeOut" }}>
           <div className="inline-flex items-center gap-3 mb-6"><div className="h-px w-10 bg-korma-gold" /><span className="text-korma-gold text-xs font-bold tracking-[0.3em] uppercase">Korean Martial Arts Association</span><div className="h-px w-10 bg-korma-gold" /></div>
-          <h1 className="text-5xl sm:text-6xl lg:text-7xl font-black text-white leading-[1.05] mb-6 tracking-tight">Master the<br /><span className="gold-shimmer">Ancient Arts</span><br />of Korea</h1>
+          <h1 className="text-5xl sm:text-6xl lg:text-7xl font-black text-white leading-[1.05] mb-6 tracking-tight">Master the<br /><span className="gold-shimmer">Martial Arts</span><br />of Korea</h1>
           <p className="text-white/60 text-lg sm:text-xl max-w-xl leading-relaxed mb-10">Discover authentic Korean martial arts — Taekwondo Changmookwan, Hapkido Migukyongkwan, and Kumdo — taught by experienced masters in a disciplined, welcoming environment.</p>
           <div className="flex flex-wrap gap-4 justify-center lg:justify-start">
             <Link href="#programs" className="px-8 py-4 bg-korma-gold text-korma-dark font-bold rounded text-sm uppercase tracking-wider hover:bg-korma-gold-light transition-all hover:shadow-lg hover:shadow-korma-gold/30">Explore Programs</Link>

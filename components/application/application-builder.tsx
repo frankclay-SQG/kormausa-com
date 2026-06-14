@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import type { ElementType, ReactNode } from "react";
 import {
   Award,
@@ -19,6 +19,7 @@ import {
   Phone,
   Plus,
   Save,
+  Search,
   ShieldCheck,
   Trash2,
   Upload,
@@ -55,6 +56,10 @@ import type {
   PromotionHistoryEntry,
   TestingEligibilityDraft,
 } from "@/lib/application/types";
+import type {
+  GoogleAddressSuggestion,
+  GoogleAddressValidationResult,
+} from "@/lib/application/google-address";
 import { cn } from "@/lib/utils";
 
 const STORAGE_KEY = "kormaApplicationDraft.v1";
@@ -77,6 +82,7 @@ const steps = [
 ];
 
 type SaveState = "idle" | "saving" | "saved";
+type AddressSearchState = "idle" | "searching" | "validating";
 type MasterKeyStatus =
   | "idle"
   | "checking"
@@ -99,7 +105,24 @@ export function ApplicationBuilder() {
     const raw = window.localStorage.getItem(STORAGE_KEY);
     if (raw) {
       try {
-        setDraft({ ...createApplicationDraft(), ...JSON.parse(raw) });
+        const parsed = JSON.parse(raw) as Partial<ApplicationDraft>;
+        const defaults = createApplicationDraft();
+        setDraft({
+          ...defaults,
+          ...parsed,
+          registration: {
+            ...defaults.registration,
+            ...(parsed.registration ?? {}),
+          },
+          school: {
+            ...defaults.school,
+            ...(parsed.school ?? {}),
+          },
+          testingEligibility: {
+            ...defaults.testingEligibility,
+            ...(parsed.testingEligibility ?? {}),
+          },
+        });
       } catch {
         window.localStorage.removeItem(STORAGE_KEY);
       }
@@ -188,12 +211,33 @@ export function ApplicationBuilder() {
     setDraft((current) => selectRankDanLevel(current, danLevelId));
   }
 
-  function updateRegistrationField(
+  const updateRegistrationField = useCallback((
     field: RegistrationField,
     value: string | boolean
-  ) {
+  ) => {
     setDraft((current) => updateRegistration(current, field, value));
-  }
+  }, []);
+
+  const patchRegistrationFields = useCallback((
+    updates: Partial<ApplicationRegistration>
+  ) => {
+    setDraft((current) =>
+      markUpdated({
+        ...current,
+        status: "draft",
+        registration: {
+          ...current.registration,
+          ...updates,
+        },
+        submitterName:
+          typeof updates.name === "string" ? updates.name : current.submitterName,
+        submitterEmail:
+          typeof updates.email === "string"
+            ? updates.email
+            : current.submitterEmail,
+      })
+    );
+  }, []);
 
   function updateSchool(field: SchoolTextField, value: string) {
     setDraft((current) =>
@@ -345,6 +389,7 @@ export function ApplicationBuilder() {
               registration={draft.registration}
               complete={registrationComplete}
               onUpdateRegistration={updateRegistrationField}
+              onPatchRegistration={patchRegistrationFields}
             />
           )}
           {step === 2 && (
@@ -589,6 +634,7 @@ function RegistrationStep({
   registration,
   complete,
   onUpdateRegistration,
+  onPatchRegistration,
 }: {
   registration: ApplicationRegistration;
   complete: boolean;
@@ -596,7 +642,166 @@ function RegistrationStep({
     field: RegistrationField,
     value: string | boolean
   ) => void;
+  onPatchRegistration: (updates: Partial<ApplicationRegistration>) => void;
 }) {
+  const [addressQuery, setAddressQuery] = useState(() =>
+    registration.formattedAddress || formatRegistrationAddress(registration)
+  );
+  const [suggestions, setSuggestions] = useState<GoogleAddressSuggestion[]>([]);
+  const [addressSearchState, setAddressSearchState] =
+    useState<AddressSearchState>("idle");
+  const [addressSessionToken, setAddressSessionToken] = useState(() =>
+    createAddressSessionToken()
+  );
+
+  useEffect(() => {
+    const formatted = registration.formattedAddress;
+    if (formatted && formatted !== addressQuery) {
+      setAddressQuery(formatted);
+    }
+  }, [addressQuery, registration.formattedAddress]);
+
+  useEffect(() => {
+    const query = addressQuery.trim();
+    if (query.length < 3) {
+      setSuggestions([]);
+      return;
+    }
+    if (
+      registration.addressValidationStatus === "validated" &&
+      query === registration.formattedAddress.trim()
+    ) {
+      setSuggestions([]);
+      return;
+    }
+
+    const timer = window.setTimeout(async () => {
+      setAddressSearchState("searching");
+      try {
+        const response = await fetch("/api/apply/address/autocomplete", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            input: query,
+            sessionToken: addressSessionToken,
+          }),
+        });
+        const result = (await response.json()) as {
+          configured?: boolean;
+          suggestions?: GoogleAddressSuggestion[];
+          error?: string;
+        };
+
+        if (result.configured === false) {
+          onPatchRegistration({
+            addressValidationStatus: "not-configured",
+            addressValidationMessage: "Google Maps is not configured.",
+          });
+          setSuggestions([]);
+          return;
+        }
+
+        setSuggestions(result.suggestions ?? []);
+      } catch {
+        setSuggestions([]);
+      } finally {
+        setAddressSearchState("idle");
+      }
+    }, 300);
+
+    return () => window.clearTimeout(timer);
+  }, [
+    addressQuery,
+    addressSessionToken,
+    onPatchRegistration,
+    registration.addressValidationStatus,
+    registration.formattedAddress,
+  ]);
+
+  async function selectAddressSuggestion(suggestion: GoogleAddressSuggestion) {
+    setAddressQuery(suggestion.label);
+    setSuggestions([]);
+    await validateAddress({ placeId: suggestion.placeId });
+  }
+
+  async function validateTypedAddress() {
+    await validateAddress();
+  }
+
+  async function validateAddress(options: { placeId?: string } = {}) {
+    setAddressSearchState("validating");
+    onPatchRegistration({
+      addressValidationStatus: "validating",
+      addressValidationMessage: "Validating mailing address with Google Maps.",
+    });
+
+    try {
+      const response = await fetch("/api/apply/address/validate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(
+          options.placeId
+            ? {
+                placeId: options.placeId,
+                sessionToken: addressSessionToken,
+              }
+            : {
+                address: {
+                  addressLine1: registration.addressLine1,
+                  addressLine2: registration.addressLine2,
+                  city: registration.city,
+                  state: registration.state,
+                  postalCode: registration.postalCode,
+                  googlePlaceId: registration.googlePlaceId,
+                },
+              }
+        ),
+      });
+      const result = (await response.json()) as GoogleAddressValidationResult & {
+        configured?: boolean;
+      };
+
+      applyAddressValidationResult(result);
+      setAddressSessionToken(createAddressSessionToken());
+    } catch {
+      onPatchRegistration({
+        addressValidationStatus: "needs-review",
+        addressValidationMessage: "Address validation failed.",
+      });
+    } finally {
+      setAddressSearchState("idle");
+    }
+  }
+
+  function applyAddressValidationResult(
+    result: GoogleAddressValidationResult & { configured?: boolean }
+  ) {
+    const normalized = result.normalizedAddress;
+    const nextStatus =
+      result.configured === false ? "not-configured" : result.status;
+    const nextMessage =
+      result.message ||
+      (nextStatus === "validated"
+        ? "Address validated with Google Maps."
+        : "Google Maps could not fully validate this mailing address.");
+
+    onPatchRegistration({
+      addressLine1: normalized?.addressLine1 ?? registration.addressLine1,
+      addressLine2: normalized?.addressLine2 ?? registration.addressLine2,
+      city: normalized?.city ?? registration.city,
+      state: normalized?.state ?? registration.state,
+      postalCode: normalized?.postalCode ?? registration.postalCode,
+      formattedAddress:
+        normalized?.formattedAddress ?? registration.formattedAddress,
+      googlePlaceId: normalized?.googlePlaceId ?? registration.googlePlaceId,
+      googleMapsUri: normalized?.googleMapsUri ?? registration.googleMapsUri,
+      addressValidationStatus: nextStatus,
+      addressValidationMessage: nextMessage,
+      addressValidatedAt:
+        nextStatus === "validated" ? new Date().toISOString() : "",
+    });
+  }
+
   return (
     <section>
       <SectionHeader
@@ -641,6 +846,39 @@ function RegistrationStep({
             required
           />
         </Field>
+        <div className="relative md:col-span-2">
+          <Field label="Find Mailing Address">
+            <div className="relative">
+              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-white/35" />
+              <input
+                value={addressQuery}
+                onChange={(event) => setAddressQuery(event.target.value)}
+                className={cn(inputClass, "pl-10")}
+                placeholder="Start typing an address to select it from Google Maps"
+                autoComplete="street-address"
+              />
+            </div>
+          </Field>
+          {suggestions.length > 0 && (
+            <div className="absolute left-0 right-0 top-full z-20 mt-2 overflow-hidden rounded-lg border border-korma-gold/25 bg-korma-navy-deeper shadow-2xl">
+              {suggestions.map((suggestion) => (
+                <button
+                  key={suggestion.placeId}
+                  type="button"
+                  onClick={() => selectAddressSuggestion(suggestion)}
+                  className="block w-full border-b border-white/10 px-4 py-3 text-left transition-colors last:border-b-0 hover:bg-korma-gold/10"
+                >
+                  <span className="block text-sm font-bold text-white">
+                    {suggestion.mainText}
+                  </span>
+                  <span className="mt-1 block text-xs text-white/45">
+                    {suggestion.secondaryText}
+                  </span>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
         <Field label="Address Line 1">
           <input
             value={registration.addressLine1}
@@ -696,6 +934,48 @@ function RegistrationStep({
             required
           />
         </Field>
+        <div className="md:col-span-2">
+          <div
+            className={cn(
+              "rounded-lg border px-4 py-3 text-sm",
+              registration.addressValidationStatus === "validated"
+                ? "border-korma-gold/30 bg-korma-gold/10 text-korma-gold"
+                : "border-white/10 bg-white/[0.03] text-white/45"
+            )}
+          >
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex items-center gap-2">
+                <MapPin className="h-4 w-4" />
+                <span>
+                  {registration.addressValidationStatus === "validated"
+                    ? "Google Maps mailing address validated."
+                    : registration.addressValidationMessage ||
+                      "Select an address from Google Maps or validate the typed address."}
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={validateTypedAddress}
+                disabled={addressSearchState === "validating"}
+                className="inline-flex w-fit items-center justify-center rounded bg-korma-gold px-3 py-2 text-xs font-bold uppercase tracking-wider text-korma-dark transition-colors hover:bg-korma-gold-light disabled:cursor-not-allowed disabled:opacity-55"
+              >
+                {addressSearchState === "validating"
+                  ? "Validating"
+                  : "Validate Address"}
+              </button>
+            </div>
+            {registration.formattedAddress && (
+              <div className="mt-2 text-xs text-white/50">
+                Standardized: {registration.formattedAddress}
+              </div>
+            )}
+          </div>
+          {addressSearchState === "searching" && (
+            <div className="mt-2 text-xs text-white/35">
+              Searching Google Maps addresses.
+            </div>
+          )}
+        </div>
       </div>
 
       <div className="mt-8 grid gap-4 md:grid-cols-2">
@@ -726,7 +1006,7 @@ function RegistrationStep({
         <ShieldCheck className="h-4 w-4" />
         {complete
           ? "Registration can be inherited into applications."
-          : "Complete all required registration fields and permissions to continue."}
+          : "Complete all required registration fields, validate the mailing address, and select both permissions to continue."}
       </div>
     </section>
   );
@@ -770,6 +1050,27 @@ function RegistrationConsent({
         </span>
       </span>
     </label>
+  );
+}
+
+function formatRegistrationAddress(registration: ApplicationRegistration) {
+  return [
+    registration.addressLine1,
+    registration.addressLine2,
+    registration.city,
+    registration.state,
+    registration.postalCode,
+  ]
+    .filter(Boolean)
+    .join(", ");
+}
+
+function createAddressSessionToken() {
+  return (
+    globalThis.crypto?.randomUUID?.() ??
+    `address-${Date.now().toString(36)}-${Math.random()
+      .toString(36)
+      .slice(2, 10)}`
   );
 }
 

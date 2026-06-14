@@ -11,6 +11,10 @@ import type {
   DanLevelId,
   MartialArtId,
 } from "@/lib/application/types";
+import {
+  hasGoogleMapsKey,
+  validateGoogleAddress,
+} from "@/lib/application/google-address";
 
 const HS_BASE = "https://api.hubapi.com";
 const PIPELINE_ID = "default";
@@ -46,6 +50,17 @@ interface RegistrationStatus {
   city: string;
   state: string;
   postalCode: string;
+  formattedAddress: string;
+  googlePlaceId: string;
+  googleMapsUri: string;
+  addressValidationStatus:
+    | "unverified"
+    | "validating"
+    | "validated"
+    | "needs-review"
+    | "not-configured";
+  addressValidationMessage: string;
+  addressValidatedAt: string;
   phone: string;
   email: string;
   allowTexts: boolean;
@@ -86,6 +101,14 @@ export async function POST(req: NextRequest) {
       return NextResponse.json(
         { error: "Completed registration and permissions are required" },
         { status: 400 }
+      );
+    }
+
+    const addressValidationError = await getAddressValidationError(submission);
+    if (addressValidationError) {
+      return NextResponse.json(
+        { error: addressValidationError.error },
+        { status: addressValidationError.status }
       );
     }
 
@@ -240,6 +263,49 @@ function getMasterOverrideError(submission: ApplySubmission) {
 
 function requiresMasterKey(eligibility: TestingEligibilityStatus) {
   return eligibility.manualOverride || eligibility.entryAboveFirst;
+}
+
+async function getAddressValidationError(submission: ApplySubmission) {
+  if (!hasGoogleMapsKey()) {
+    return {
+      status: 503,
+      error: "Google Maps is not configured for address validation",
+    } as const;
+  }
+
+  try {
+    const result = await validateGoogleAddress(submission.registration);
+    if (result.status !== "validated" || !result.normalizedAddress) {
+      return {
+        status: 400,
+        error: "A Google-validated mailing address is required",
+      } as const;
+    }
+
+    submission.registration = {
+      ...submission.registration,
+      addressLine1: result.normalizedAddress.addressLine1,
+      addressLine2: result.normalizedAddress.addressLine2,
+      city: result.normalizedAddress.city,
+      state: result.normalizedAddress.state,
+      postalCode: result.normalizedAddress.postalCode,
+      formattedAddress: result.normalizedAddress.formattedAddress,
+      googlePlaceId: result.normalizedAddress.googlePlaceId,
+      googleMapsUri:
+        result.normalizedAddress.googleMapsUri ??
+        submission.registration.googleMapsUri,
+      addressValidationStatus: "validated",
+      addressValidationMessage: result.message,
+      addressValidatedAt: new Date().toISOString(),
+    };
+    return null;
+  } catch (error) {
+    console.error("[apply] address validation failed:", error);
+    return {
+      status: 400,
+      error: "A Google-validated mailing address is required",
+    } as const;
+  }
 }
 
 async function createOrFindContact(
@@ -505,6 +571,15 @@ function buildPromotionHistoryNote(submission: ApplySubmission) {
     `Student: ${submission.submitterName || "Unknown"} <${submission.submitterEmail}>`,
     `Phone: ${submission.registration.phone}`,
     `Address: ${formatRegistrationAddress(submission.registration)}`,
+    submission.registration.formattedAddress
+      ? `Google Validated Address: ${submission.registration.formattedAddress}`
+      : null,
+    submission.registration.googlePlaceId
+      ? `Google Place ID: ${submission.registration.googlePlaceId}`
+      : null,
+    submission.registration.googleMapsUri
+      ? `Google Maps: ${submission.registration.googleMapsUri}`
+      : null,
     `Text Permission: ${submission.registration.allowTexts ? "YES" : "NO"}`,
     `Email Permission: ${submission.registration.allowEmails ? "YES" : "NO"}`,
     "",
@@ -549,6 +624,15 @@ function buildDealDescription(submission: ApplySubmission) {
     `Submitter: ${submission.submitterName || "Unknown"} <${submission.submitterEmail}>`,
     `Phone: ${submission.registration.phone}`,
     `Address: ${formatRegistrationAddress(submission.registration)}`,
+    submission.registration.formattedAddress
+      ? `Google Validated Address: ${submission.registration.formattedAddress}`
+      : null,
+    submission.registration.googlePlaceId
+      ? `Google Place ID: ${submission.registration.googlePlaceId}`
+      : null,
+    submission.registration.googleMapsUri
+      ? `Google Maps: ${submission.registration.googleMapsUri}`
+      : null,
     `Text Permission: ${submission.registration.allowTexts ? "YES" : "NO"}`,
     `Email Permission: ${submission.registration.allowEmails ? "YES" : "NO"}`,
     submission.selectedServices.length
@@ -766,6 +850,30 @@ function normalizeRegistration(
     state: typeof source.state === "string" ? source.state : "",
     postalCode:
       typeof source.postalCode === "string" ? source.postalCode : "",
+    formattedAddress:
+      typeof source.formattedAddress === "string"
+        ? source.formattedAddress
+        : "",
+    googlePlaceId:
+      typeof source.googlePlaceId === "string" ? source.googlePlaceId : "",
+    googleMapsUri:
+      typeof source.googleMapsUri === "string" ? source.googleMapsUri : "",
+    addressValidationStatus:
+      source.addressValidationStatus === "validated" ||
+      source.addressValidationStatus === "needs-review" ||
+      source.addressValidationStatus === "not-configured" ||
+      source.addressValidationStatus === "validating" ||
+      source.addressValidationStatus === "unverified"
+        ? source.addressValidationStatus
+        : "unverified",
+    addressValidationMessage:
+      typeof source.addressValidationMessage === "string"
+        ? source.addressValidationMessage
+        : "",
+    addressValidatedAt:
+      typeof source.addressValidatedAt === "string"
+        ? source.addressValidatedAt
+        : "",
     phone: typeof source.phone === "string" ? source.phone : "",
     email:
       typeof source.email === "string"
@@ -783,6 +891,7 @@ function isRegistrationComplete(registration: RegistrationStatus) {
       registration.city.trim() &&
       registration.state.trim() &&
       registration.postalCode.trim() &&
+      registration.addressValidationStatus === "validated" &&
       registration.phone.trim() &&
       isValidEmail(registration.email) &&
       registration.allowTexts &&
