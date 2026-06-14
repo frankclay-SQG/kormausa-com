@@ -14,7 +14,7 @@ export function Footer() {
         </div>
         <div className="border-t border-white/[0.07] pt-8 flex flex-col sm:flex-row items-center justify-between gap-4">
           <p className="text-white/25 text-xs">© {new Date().getFullYear()} KORMA-USA — Korean Martial Arts Association. All rights reserved.</p>
-          <div className="flex gap-6"><Link href="#" className="text-white/25 text-xs hover:text-white/50 transition-colors">Privacy Policy</Link><Link href="#" className="text-white/25 text-xs hover:text-white/50 transition-colors">Terms of Service</Link></div>
+          <div className="flex gap-6"><Link href="/privacy-policy" className="text-white/25 text-xs hover:text-white/50 transition-colors">Privacy Policy</Link><Link href="/terms-of-service" className="text-white/25 text-xs hover:text-white/50 transition-colors">Terms of Service</Link></div>
         </div>
       </div>
     </footer>

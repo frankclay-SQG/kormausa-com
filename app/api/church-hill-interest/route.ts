@@ -1,5 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import {
+  hasGoogleMapsKey,
+  validateGoogleAddress,
+} from "@/lib/application/google-address";
+import {
   createHubSpotHeaders,
   ensureHubSpotContact,
   splitName,
@@ -21,14 +25,63 @@ export async function POST(req: NextRequest) {
 
     const body = (await req.json()) as {
       name: string;
-      address: string;
       phone: string;
       email: string;
       allowTexts: boolean;
       allowEmails: boolean;
       previousExperience: string;
       duplicateConfirmed?: boolean;
+      address?: {
+        addressLine1?: string;
+        addressLine2?: string;
+        city?: string;
+        state?: string;
+        postalCode?: string;
+        formattedAddress?: string;
+        googlePlaceId?: string;
+        googleMapsUri?: string;
+      };
     };
+
+    if (!hasGoogleMapsKey()) {
+      return NextResponse.json(
+        { error: "Google Maps address validation is not configured" },
+        { status: 503 }
+      );
+    }
+
+    const addressValidation = await validateGoogleAddress({
+      addressLine1: body.address?.addressLine1 ?? "",
+      addressLine2: body.address?.addressLine2 ?? "",
+      city: body.address?.city ?? "",
+      state: body.address?.state ?? "",
+      postalCode: body.address?.postalCode ?? "",
+      googlePlaceId: body.address?.googlePlaceId ?? "",
+    });
+
+    if (addressValidation.status !== "validated") {
+      return NextResponse.json(
+        {
+          error:
+            addressValidation.message ||
+            "A Google-validated mailing address is required",
+        },
+        { status: 400 }
+      );
+    }
+
+    const normalizedAddress = addressValidation.normalizedAddress;
+    const formattedAddress =
+      normalizedAddress?.formattedAddress ??
+      [
+        normalizedAddress?.addressLine1 ?? body.address?.addressLine1 ?? "",
+        normalizedAddress?.addressLine2 ?? body.address?.addressLine2 ?? "",
+        normalizedAddress?.city ?? body.address?.city ?? "",
+        normalizedAddress?.state ?? body.address?.state ?? "",
+        normalizedAddress?.postalCode ?? body.address?.postalCode ?? "",
+      ]
+        .filter(Boolean)
+        .join(", ");
 
     const { firstName, lastName } = splitName(body.name ?? "");
     const headers = createHubSpotHeaders(token);
@@ -45,7 +98,10 @@ export async function POST(req: NextRequest) {
         lastname: lastName,
         email: body.email ?? "",
         phone: body.phone ?? "",
-        address: body.address ?? "",
+        address: normalizedAddress?.addressLine1 ?? body.address?.addressLine1 ?? "",
+        city: normalizedAddress?.city ?? body.address?.city ?? "",
+        state: normalizedAddress?.state ?? body.address?.state ?? "",
+        zip: normalizedAddress?.postalCode ?? body.address?.postalCode ?? "",
         korma_inquiry_type: "regular_class",
       },
     });
@@ -66,7 +122,15 @@ export async function POST(req: NextRequest) {
       `Name: ${body.name}`,
       `Email: ${body.email}`,
       body.phone ? `Phone: ${body.phone}` : null,
-      body.address ? `Address: ${body.address}` : null,
+      formattedAddress ? `Address: ${formattedAddress}` : null,
+      normalizedAddress?.googlePlaceId
+        ? `Google Place ID: ${normalizedAddress.googlePlaceId}`
+        : body.address?.googlePlaceId
+          ? `Google Place ID: ${body.address.googlePlaceId}`
+          : null,
+      body.address?.googleMapsUri
+        ? `Google Maps: ${body.address.googleMapsUri}`
+        : null,
       `Text permission: ${body.allowTexts ? "YES" : "NO"}`,
       `Email permission: ${body.allowEmails ? "YES" : "NO"}`,
       body.previousExperience

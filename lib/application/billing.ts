@@ -1,9 +1,14 @@
 import {
   APPLICATION_SERVICES,
+  formatUsd,
   getDanLevelCost,
+  getFlowService,
+  getServiceAmountCents,
   getService,
+  orderServiceIdsForFlow,
 } from "@/lib/application/catalog";
 import type {
+  ApplicationFlowId,
   ApplicationServiceId,
   DanLevelId,
 } from "@/lib/application/types";
@@ -14,6 +19,7 @@ export const PAYMENT_PLAN_INTEREST_RATE = "5%";
 
 export interface BillingRequest {
   applicationId?: string;
+  applicationFlowId?: ApplicationFlowId;
   submitterEmail: string;
   submitterName?: string;
   selectedServices: ApplicationServiceId[];
@@ -37,11 +43,13 @@ export interface PaymentPlanDisclosure {
 
 export interface GeneratedBill {
   applicationId: string;
+  applicationFlowId: ApplicationFlowId;
   submitterEmail: string;
   submitterName: string;
   referenceEmail: string;
   lines: BillLine[];
   totalPlaceholder: string;
+  totalAmountCents?: number;
   paymentPlan: PaymentPlanDisclosure;
 }
 
@@ -52,14 +60,21 @@ export function isValidBillingEmail(email: string) {
 export function buildApplicationBill(request: BillingRequest): GeneratedBill {
   const applicationId =
     request.applicationId?.trim() || `korma-${Date.now().toString(36)}`;
+  const applicationFlowId = request.applicationFlowId ?? "standard";
   const submitterEmail = request.submitterEmail.trim();
   const submitterName = request.submitterName?.trim() || "KORMA-USA applicant";
-  const selectedIds = normalizeSelectedServices(request.selectedServices);
-  const selectedDanLevel = getDanLevelCost(request.rankDanLevelId ?? "");
+  const selectedIds = normalizeSelectedServices(
+    orderServiceIdsForFlow(applicationFlowId, request.selectedServices)
+  );
+  const selectedDanLevel = getDanLevelCost(
+    request.rankDanLevelId ?? "",
+    applicationFlowId
+  );
 
   const lines = selectedIds
     .map((serviceId) => {
-      const service = getService(serviceId);
+      const service =
+        getFlowService(applicationFlowId, serviceId) ?? getService(serviceId);
       if (!service) return null;
 
       if (service.id === "rank-registration") {
@@ -72,21 +87,38 @@ export function buildApplicationBill(request: BillingRequest): GeneratedBill {
         };
       }
 
+      const amountCents = getServiceAmountCents(applicationFlowId, service.id);
       return {
         label: service.title,
-        amountPlaceholder: service.pricePlaceholder,
+        amountPlaceholder: amountCents
+          ? formatUsd(amountCents)
+          : service.pricePlaceholder,
       };
     })
     .filter((line): line is BillLine => Boolean(line));
 
+  const knownAmounts = selectedIds.map((serviceId) => {
+    if (serviceId === "rank-registration") {
+      return selectedDanLevel?.amountCents;
+    }
+    return getServiceAmountCents(applicationFlowId, serviceId);
+  });
+  const totalAmountCents = knownAmounts.every((amount) => typeof amount === "number")
+    ? knownAmounts.reduce((sum, amount) => sum + (amount ?? 0), 0)
+    : undefined;
+
   return {
     applicationId,
+    applicationFlowId,
     submitterEmail,
     submitterName,
     referenceEmail: REFERENCE_BILLING_EMAIL,
     lines,
-    totalPlaceholder: "Calculated after pricing is configured",
-    paymentPlan: buildPaymentPlanDisclosure(),
+    totalPlaceholder: totalAmountCents
+      ? formatUsd(totalAmountCents)
+      : "Calculated after remaining pricing is configured",
+    totalAmountCents,
+    paymentPlan: buildPaymentPlanDisclosure(totalAmountCents),
   };
 }
 
@@ -130,15 +162,40 @@ export function buildBillingHtml(bill: GeneratedBill) {
     </div>`;
 }
 
-function buildPaymentPlanDisclosure(): PaymentPlanDisclosure {
+function buildPaymentPlanDisclosure(
+  totalAmountCents?: number
+): PaymentPlanDisclosure {
+  const downPaymentCents =
+    typeof totalAmountCents === "number"
+      ? Math.round(totalAmountCents * 0.1)
+      : undefined;
+  const interestCents =
+    typeof totalAmountCents === "number"
+      ? Math.round(totalAmountCents * 0.05)
+      : undefined;
+  const balanceCents =
+    typeof totalAmountCents === "number" &&
+    typeof downPaymentCents === "number" &&
+    typeof interestCents === "number"
+      ? totalAmountCents + interestCents - downPaymentCents
+      : undefined;
+
   return {
     title: "Multiple-payment subscription",
     downPaymentRate: PAYMENT_PLAN_DOWN_PAYMENT_RATE,
     interestRate: PAYMENT_PLAN_INTEREST_RATE,
-    downPaymentPlaceholder: `${PAYMENT_PLAN_DOWN_PAYMENT_RATE} of approved bill subtotal`,
-    interestPlaceholder: `${PAYMENT_PLAN_INTEREST_RATE} added to approved bill subtotal`,
+    downPaymentPlaceholder:
+      typeof downPaymentCents === "number"
+        ? formatUsd(downPaymentCents)
+        : `${PAYMENT_PLAN_DOWN_PAYMENT_RATE} of approved bill subtotal`,
+    interestPlaceholder:
+      typeof interestCents === "number"
+        ? formatUsd(interestCents)
+        : `${PAYMENT_PLAN_INTEREST_RATE} added to approved bill subtotal`,
     subscriptionBalancePlaceholder:
-      "Approved bill subtotal + interest - down payment",
+      typeof balanceCents === "number"
+        ? formatUsd(balanceCents)
+        : "Approved bill subtotal + interest - down payment",
     disclosure:
       "If the bill is split into multiple payments, the subscription must disclose the down payment, the added interest, and the remaining balance before the applicant accepts.",
   };

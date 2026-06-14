@@ -3,10 +3,12 @@ import {
   DAN_LEVEL_COSTS,
   getDanLevelCost,
   getDanTestingRequirement,
+  getFlowService,
   getMartialArt,
   getService,
 } from "@/lib/application/catalog";
 import type {
+  ApplicationFlowId,
   ApplicationServiceId,
   DanLevelId,
   MartialArtId,
@@ -29,6 +31,7 @@ const TASK_ASSOCIATION_TYPE_IDS = {
 
 interface ApplySubmission {
   applicationId?: string;
+  applicationFlowId: ApplicationFlowId;
   registration: RegistrationStatus;
   submitterName: string;
   submitterEmail: string;
@@ -99,10 +102,17 @@ interface TestingEligibilityStatus {
 }
 
 interface CertificationProfileStatus {
+  dateOfBirth: string;
+  nation: string;
+  sex: "" | "M" | "F";
+  citizenNumber: string;
   currentRank: string;
+  currentRankIssueDate: string;
+  currentRankNumber: string;
   yearsTraining: string;
   currentOrg: string;
   instructorName: string;
+  recommenderName: string;
   notes: string;
 }
 
@@ -210,6 +220,10 @@ async function readSubmission(req: NextRequest): Promise<ApplySubmission> {
   });
   return {
     applicationId: body.applicationId,
+    applicationFlowId:
+      body.applicationFlowId === "whmaf-promotion"
+        ? "whmaf-promotion"
+        : "standard",
     registration,
     submitterName: registration.name,
     submitterEmail: registration.email,
@@ -240,6 +254,10 @@ function readMultipartSubmission(form: FormData): ApplySubmission {
 
   return {
     applicationId: getText(form, "applicationId"),
+    applicationFlowId:
+      getText(form, "applicationFlowId") === "whmaf-promotion"
+        ? "whmaf-promotion"
+        : "standard",
     registration,
     submitterName: registration.name,
     submitterEmail: registration.email,
@@ -316,6 +334,7 @@ async function createOrFindContact(
     state: submission.registration.state,
     zip: submission.registration.postalCode,
     korma_inquiry_type: "certification",
+    korma_date_of_birth: submission.certificationProfile.dateOfBirth || "",
   };
 
   const result = await ensureHubSpotContact({
@@ -503,6 +522,7 @@ function buildPromotionHistoryNote(submission: ApplySubmission) {
   return [
     "KORMA-USA Promotion History",
     "",
+    `Application Flow: ${submission.applicationFlowId}`,
     `Student: ${submission.submitterName || "Unknown"} <${submission.submitterEmail}>`,
     `Phone: ${submission.registration.phone}`,
     `Address: ${formatRegistrationAddress(submission.registration)}`,
@@ -521,7 +541,12 @@ function buildPromotionHistoryNote(submission: ApplySubmission) {
     "Certification Intake:",
     submission.selectedServices.length
       ? `Requested Tracks: ${submission.selectedServices
-          .map((serviceId) => getService(serviceId)?.title ?? serviceId)
+          .map(
+            (serviceId) =>
+              getFlowService(submission.applicationFlowId, serviceId)?.title ??
+              getService(serviceId)?.title ??
+              serviceId
+          )
           .join(", ")}`
       : "Requested Tracks: None selected",
     submission.selectedArts.length
@@ -529,8 +554,26 @@ function buildPromotionHistoryNote(submission: ApplySubmission) {
           .map((artId) => getMartialArt(artId)?.title ?? artId)
           .join(", ")}`
       : "Martial Arts: None selected",
+    submission.certificationProfile.dateOfBirth
+      ? `Date of Birth: ${submission.certificationProfile.dateOfBirth}`
+      : null,
+    submission.certificationProfile.nation
+      ? `Nation: ${submission.certificationProfile.nation}`
+      : null,
+    submission.certificationProfile.sex
+      ? `Sex: ${submission.certificationProfile.sex}`
+      : null,
+    submission.certificationProfile.citizenNumber
+      ? `Citizen Number: ${submission.certificationProfile.citizenNumber}`
+      : null,
     submission.certificationProfile.currentRank
       ? `Current Rank: ${submission.certificationProfile.currentRank}`
+      : null,
+    submission.certificationProfile.currentRankIssueDate
+      ? `Current Rank Issue Date: ${submission.certificationProfile.currentRankIssueDate}`
+      : null,
+    submission.certificationProfile.currentRankNumber
+      ? `Current Rank Number: ${submission.certificationProfile.currentRankNumber}`
       : null,
     submission.certificationProfile.yearsTraining
       ? `Years Training: ${submission.certificationProfile.yearsTraining}`
@@ -540,6 +583,9 @@ function buildPromotionHistoryNote(submission: ApplySubmission) {
       : null,
     submission.certificationProfile.instructorName
       ? `Instructor: ${submission.certificationProfile.instructorName}`
+      : null,
+    submission.certificationProfile.recommenderName
+      ? `Recommender: ${submission.certificationProfile.recommenderName}`
       : null,
     submission.certificationProfile.notes
       ? `Certification Notes: ${submission.certificationProfile.notes}`
@@ -574,7 +620,10 @@ function buildPromotionHistoryNote(submission: ApplySubmission) {
 }
 
 function buildDealDescription(submission: ApplySubmission) {
-  const selectedDanLevel = getDanLevelCost(submission.rankDanLevelId ?? "");
+  const selectedDanLevel = getDanLevelCost(
+    submission.rankDanLevelId ?? "",
+    submission.applicationFlowId
+  );
   const targetDanLevel = getDanLevelCost(
     submission.testingEligibility.targetDanLevelId
   );
@@ -583,6 +632,7 @@ function buildDealDescription(submission: ApplySubmission) {
   );
   const lines = [
     `Application ID: ${submission.applicationId || "Pending"}`,
+    `Application Flow: ${submission.applicationFlowId}`,
     `Submitter: ${submission.submitterName || "Unknown"} <${submission.submitterEmail}>`,
     `Phone: ${submission.registration.phone}`,
     `Address: ${formatRegistrationAddress(submission.registration)}`,
@@ -599,7 +649,12 @@ function buildDealDescription(submission: ApplySubmission) {
     `Email Permission: ${submission.registration.allowEmails ? "YES" : "NO"}`,
     submission.selectedServices.length
       ? `Requested Tracks: ${submission.selectedServices
-          .map((serviceId) => getService(serviceId)?.title ?? serviceId)
+          .map(
+            (serviceId) =>
+              getFlowService(submission.applicationFlowId, serviceId)?.title ??
+              getService(serviceId)?.title ??
+              serviceId
+          )
           .join(", ")}`
       : null,
     submission.selectedArts.length
@@ -607,8 +662,26 @@ function buildDealDescription(submission: ApplySubmission) {
           .map((artId) => getMartialArt(artId)?.title ?? artId)
           .join(", ")}`
       : null,
+    submission.certificationProfile.dateOfBirth
+      ? `Date of Birth: ${submission.certificationProfile.dateOfBirth}`
+      : null,
+    submission.certificationProfile.nation
+      ? `Nation: ${submission.certificationProfile.nation}`
+      : null,
+    submission.certificationProfile.sex
+      ? `Sex: ${submission.certificationProfile.sex}`
+      : null,
+    submission.certificationProfile.citizenNumber
+      ? `Citizen Number: ${submission.certificationProfile.citizenNumber}`
+      : null,
     submission.certificationProfile.currentRank
       ? `Current Rank: ${submission.certificationProfile.currentRank}`
+      : null,
+    submission.certificationProfile.currentRankIssueDate
+      ? `Current Rank Issue Date: ${submission.certificationProfile.currentRankIssueDate}`
+      : null,
+    submission.certificationProfile.currentRankNumber
+      ? `Current Rank Number: ${submission.certificationProfile.currentRankNumber}`
       : null,
     submission.certificationProfile.yearsTraining
       ? `Years Training: ${submission.certificationProfile.yearsTraining}`
@@ -618,6 +691,9 @@ function buildDealDescription(submission: ApplySubmission) {
       : null,
     submission.certificationProfile.instructorName
       ? `Instructor: ${submission.certificationProfile.instructorName}`
+      : null,
+    submission.certificationProfile.recommenderName
+      ? `Recommender: ${submission.certificationProfile.recommenderName}`
       : null,
     submission.certificationProfile.notes
       ? `Certification Notes: ${submission.certificationProfile.notes}`
@@ -751,13 +827,34 @@ function normalizeCertificationProfile(
       : {};
 
   return {
+    dateOfBirth:
+      typeof value.dateOfBirth === "string" ? value.dateOfBirth : "",
+    nation: typeof value.nation === "string" ? value.nation : "",
+    sex:
+      value.sex === "M" || value.sex === "F"
+        ? value.sex
+        : "",
+    citizenNumber:
+      typeof value.citizenNumber === "string" ? value.citizenNumber : "",
     currentRank:
       typeof value.currentRank === "string" ? value.currentRank : "",
+    currentRankIssueDate:
+      typeof value.currentRankIssueDate === "string"
+        ? value.currentRankIssueDate
+        : "",
+    currentRankNumber:
+      typeof value.currentRankNumber === "string"
+        ? value.currentRankNumber
+        : "",
     yearsTraining:
       typeof value.yearsTraining === "string" ? value.yearsTraining : "",
     currentOrg: typeof value.currentOrg === "string" ? value.currentOrg : "",
     instructorName:
       typeof value.instructorName === "string" ? value.instructorName : "",
+    recommenderName:
+      typeof value.recommenderName === "string"
+        ? value.recommenderName
+        : "",
     notes: typeof value.notes === "string" ? value.notes : "",
   };
 }

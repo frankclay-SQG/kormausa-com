@@ -1,5 +1,6 @@
 import type {
   ApplicationDraft,
+  ApplicationFlowId,
   ApplicationServiceId,
   DanLevelId,
   MartialArtId,
@@ -15,6 +16,7 @@ export function createApplicationDraft(
   return {
     id: DEFAULT_DRAFT_ID,
     status: "new",
+    applicationFlowId: "standard",
     registration: {
       name: "",
       addressLine1: "",
@@ -36,10 +38,17 @@ export function createApplicationDraft(
     submitterName: "",
     submitterEmail: "",
     certificationProfile: {
+      dateOfBirth: "",
+      nation: "",
+      sex: "",
+      citizenNumber: "",
       currentRank: "",
+      currentRankIssueDate: "",
+      currentRankNumber: "",
       yearsTraining: "",
       currentOrg: "",
       instructorName: "",
+      recommenderName: "",
       notes: "",
     },
     selectedServices: [],
@@ -78,6 +87,17 @@ export function toggleService(
     selectedServices: exists
       ? draft.selectedServices.filter((id) => id !== serviceId)
       : [...draft.selectedServices, serviceId],
+  });
+}
+
+export function selectApplicationFlow(
+  draft: ApplicationDraft,
+  flowId: ApplicationFlowId
+): ApplicationDraft {
+  return markUpdated({
+    ...draft,
+    status: "draft",
+    applicationFlowId: flowId,
   });
 }
 

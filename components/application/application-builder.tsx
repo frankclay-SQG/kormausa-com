@@ -26,13 +26,19 @@ import {
   UserCheck,
 } from "lucide-react";
 import {
+  APPLICATION_FLOWS,
   APPLICATION_SERVICES,
   DAN_LEVEL_COSTS,
+  formatUsd,
+  getApplicationFlow,
   MARTIAL_ARTS,
   getDanTestingRequirement,
   getDanLevelCost,
+  getFlowService,
+  getServiceAmountCents,
   getMartialArt,
   getService,
+  orderServiceIdsForFlow,
 } from "@/lib/application/catalog";
 import {
   createPromotionHistoryEntry,
@@ -40,12 +46,15 @@ import {
   isDraftReadyForReview,
   isRegistrationComplete,
   markUpdated,
+  selectApplicationFlow,
   selectRankDanLevel,
   toggleArt,
   toggleService,
   updateRegistration,
 } from "@/lib/application/draft";
 import type {
+  ApplicationFlow,
+  ApplicationFlowId,
   ApplicationService,
   ApplicationDraft,
   ApplicationRegistration,
@@ -184,10 +193,14 @@ export function ApplicationBuilder() {
 
   const selectedServices = useMemo(
     () =>
-      draft.selectedServices
-        .map((serviceId) => getService(serviceId))
+      orderServiceIdsForFlow(draft.applicationFlowId, draft.selectedServices)
+        .map(
+          (serviceId) =>
+            getFlowService(draft.applicationFlowId, serviceId) ??
+            getService(serviceId)
+        )
         .filter((service): service is ApplicationService => Boolean(service)),
-    [draft.selectedServices]
+    [draft.applicationFlowId, draft.selectedServices]
   );
 
   const selectedArts = useMemo(
@@ -198,9 +211,14 @@ export function ApplicationBuilder() {
     [draft.selectedArts]
   );
 
+  const currentFlow = useMemo(
+    () => getApplicationFlow(draft.applicationFlowId),
+    [draft.applicationFlowId]
+  );
+
   const selectedDanLevel = useMemo(
-    () => getDanLevelCost(draft.rankDanLevelId),
-    [draft.rankDanLevelId]
+    () => getDanLevelCost(draft.rankDanLevelId, draft.applicationFlowId),
+    [draft.applicationFlowId, draft.rankDanLevelId]
   );
 
   const certificationReady =
@@ -212,7 +230,29 @@ export function ApplicationBuilder() {
     0
   );
 
+  function chooseApplicationFlow(flowId: ApplicationFlowId) {
+    setDraft((current) => {
+      const next = selectApplicationFlow(current, flowId);
+      const flow = getApplicationFlow(flowId);
+
+      if (flowId === "whmaf-promotion" && flow) {
+        return markUpdated({
+          ...next,
+          selectedServices: [...flow.serviceOrder],
+          selectedArts: ["hapkido"],
+          school: {
+            ...next.school,
+            artsTaught: ["hapkido"],
+          },
+        });
+      }
+
+      return next;
+    });
+  }
+
   function selectService(serviceId: ApplicationServiceId) {
+    if (currentFlow?.lockedServices?.length) return;
     const removing = draft.selectedServices.includes(serviceId);
     if (removing) {
       const service = getService(serviceId);
@@ -225,6 +265,7 @@ export function ApplicationBuilder() {
   }
 
   function selectArt(artId: MartialArtId) {
+    if (currentFlow?.lockedArts?.length) return;
     setDraft((current) => toggleArt(current, artId));
   }
 
@@ -425,7 +466,9 @@ export function ApplicationBuilder() {
           {step === 1 && (
             <CertificationStep
               draft={draft}
+              currentFlow={currentFlow}
               complete={certificationReady}
+              onSelectFlow={chooseApplicationFlow}
               onSelectService={selectService}
               onSelectArt={selectArt}
               onUpdateCertificationProfile={updateCertificationProfile}
@@ -443,6 +486,7 @@ export function ApplicationBuilder() {
           {step === 3 && (
             <DetailsStep
               draft={draft}
+              currentFlow={currentFlow}
               onSelectRankDanLevel={selectDanLevel}
               onUpdateSchool={updateSchool}
               onAddPromotionHistory={addPromotionHistory}
@@ -458,6 +502,7 @@ export function ApplicationBuilder() {
           {step === 4 && (
             <ReviewStep
               draft={draft}
+              currentFlow={currentFlow}
               readyForReview={readyForReview}
               selectedDanLevel={selectedDanLevel}
               selectedServices={selectedServices}
@@ -475,6 +520,7 @@ export function ApplicationBuilder() {
               title="Certification"
               empty="Certification intake required"
               values={[
+                currentFlow?.title ?? "",
                 ...selectedServices.map((service) => service?.title ?? ""),
                 ...selectedArts.map((art) => art?.title ?? ""),
                 draft.certificationProfile.currentRank
@@ -692,14 +738,18 @@ function Metric({ label, value }: { label: string; value: string }) {
 
 function CertificationStep({
   draft,
+  currentFlow,
   complete,
+  onSelectFlow,
   onSelectService,
   onSelectArt,
   onUpdateCertificationProfile,
   onUpdateSchool,
 }: {
   draft: ApplicationDraft;
+  currentFlow?: ApplicationFlow;
   complete: boolean;
+  onSelectFlow: (flowId: ApplicationFlowId) => void;
   onSelectService: (serviceId: ApplicationServiceId) => void;
   onSelectArt: (artId: MartialArtId) => void;
   onUpdateCertificationProfile: (
@@ -709,14 +759,58 @@ function CertificationStep({
   onUpdateSchool: (field: SchoolTextField, value: string) => void;
 }) {
   const needsSchoolName = draft.selectedServices.includes("school-registration");
+  const flowLockedServices = currentFlow?.lockedServices?.length
+    ? new Set(currentFlow.lockedServices)
+    : null;
+  const flowLockedArts = currentFlow?.lockedArts?.length
+    ? new Set(currentFlow.lockedArts)
+    : null;
 
   return (
     <section>
       <SectionHeader
         eyebrow="Step 1"
         title="Certification Review"
-        description="Start with the certification tracks and martial arts involved. This profile feeds the shared application record and HubSpot submission."
+        description={
+          currentFlow?.helperText ??
+          "Start with the certification tracks and martial arts involved. This profile feeds the shared application record and HubSpot submission."
+        }
       />
+
+      <div className="mt-8">
+        <h3 className="text-sm font-bold uppercase tracking-wider text-white">
+          Submission Path
+        </h3>
+        <div className="mt-4 grid gap-4 lg:grid-cols-2">
+          {APPLICATION_FLOWS.map((flow) => {
+            const selected = draft.applicationFlowId === flow.id;
+            return (
+              <button
+                key={flow.id}
+                type="button"
+                onClick={() => onSelectFlow(flow.id)}
+                className={cn(
+                  "rounded-xl border p-5 text-left transition-colors",
+                  selected
+                    ? "border-korma-gold/60 bg-korma-gold/10"
+                    : "border-white/10 bg-white/[0.03] hover:border-korma-gold/30"
+                )}
+              >
+                <div className="flex items-center justify-between gap-3">
+                  <h4 className="text-lg font-black text-white">{flow.title}</h4>
+                  {selected && <Check className="h-4 w-4 text-korma-gold" />}
+                </div>
+                <p className="mt-2 text-sm leading-relaxed text-white/55">
+                  {flow.description}
+                </p>
+                <div className="mt-4 text-xs font-semibold uppercase tracking-wider text-korma-gold">
+                  {flow.helperText}
+                </div>
+              </button>
+            );
+          })}
+        </div>
+      </div>
 
       <div className="mt-8">
         <h3 className="text-sm font-bold uppercase tracking-wider text-white">
@@ -724,18 +818,23 @@ function CertificationStep({
         </h3>
         <div className="mt-4 grid gap-5 lg:grid-cols-3">
           {APPLICATION_SERVICES.map((service) => {
+            const flowService =
+              getFlowService(draft.applicationFlowId, service.id) ?? service;
             const Icon = serviceIcons[service.id];
             const selected = draft.selectedServices.includes(service.id);
+            const locked = Boolean(flowLockedServices?.has(service.id));
             return (
               <button
                 key={service.id}
                 type="button"
                 onClick={() => onSelectService(service.id)}
+                disabled={locked}
                 className={cn(
                   "group flex h-full flex-col rounded-xl border p-5 text-left transition-all",
                   selected
                     ? "border-korma-gold/60 bg-korma-gold/10"
-                    : "border-white/10 bg-white/[0.03] hover:border-korma-gold/30"
+                    : "border-white/10 bg-white/[0.03] hover:border-korma-gold/30",
+                  locked && "cursor-default"
                 )}
               >
                 <div className="flex items-start justify-between gap-4">
@@ -754,14 +853,24 @@ function CertificationStep({
                   </div>
                 </div>
                 <h3 className="mt-5 text-lg font-black text-white">
-                  {service.title}
+                  {flowService.title}
                 </h3>
                 <p className="mt-2 text-sm leading-relaxed text-white/55">
-                  {service.description}
+                  {flowService.description}
                 </p>
                 <div className="mt-5 rounded-lg border border-korma-gold/20 bg-korma-gold/10 px-3 py-2 text-xs font-semibold text-korma-gold">
-                  Cost placeholder: {service.pricePlaceholder}
+                  Price: {flowService.pricePlaceholder}
                 </div>
+                {locked && (
+                  <div className="mt-3 text-xs font-semibold uppercase tracking-wider text-white/45">
+                    Included in this submission path
+                  </div>
+                )}
+                {!locked && (
+                  <div className="mt-3 text-xs font-semibold uppercase tracking-wider text-white/45">
+                    {flowService.idealFor}
+                  </div>
+                )}
               </button>
             );
           })}
@@ -775,16 +884,19 @@ function CertificationStep({
         <div className="mt-4 grid gap-4 md:grid-cols-3">
           {MARTIAL_ARTS.map((art) => {
             const selected = draft.selectedArts.includes(art.id);
+            const locked = Boolean(flowLockedArts?.has(art.id));
             return (
               <button
                 key={art.id}
                 type="button"
                 onClick={() => onSelectArt(art.id)}
+                disabled={Boolean(flowLockedArts) && !locked}
                 className={cn(
                   "rounded-xl border p-5 text-left transition-colors",
                   selected
                     ? "border-korma-gold/60 bg-korma-gold/10"
-                    : "border-white/10 bg-white/[0.03] hover:border-korma-gold/30"
+                    : "border-white/10 bg-white/[0.03] hover:border-korma-gold/30",
+                  Boolean(flowLockedArts) && !locked && "cursor-not-allowed opacity-45"
                 )}
               >
                 <div className="flex items-center justify-between gap-3">
@@ -816,6 +928,49 @@ function CertificationStep({
               </option>
             ))}
           </select>
+        </Field>
+        <Field label="Date of Birth">
+          <input
+            type="date"
+            value={draft.certificationProfile.dateOfBirth}
+            onChange={(event) =>
+              onUpdateCertificationProfile("dateOfBirth", event.target.value)
+            }
+            className={inputClass}
+          />
+        </Field>
+        <Field label="Nation">
+          <input
+            value={draft.certificationProfile.nation}
+            onChange={(event) =>
+              onUpdateCertificationProfile("nation", event.target.value)
+            }
+            className={inputClass}
+            placeholder="United States"
+          />
+        </Field>
+        <Field label="Sex">
+          <select
+            value={draft.certificationProfile.sex}
+            onChange={(event) =>
+              onUpdateCertificationProfile("sex", event.target.value)
+            }
+            className={inputClass}
+          >
+            <option value="">Select</option>
+            <option value="M">Male (M)</option>
+            <option value="F">Female (F)</option>
+          </select>
+        </Field>
+        <Field label="Citizen No.">
+          <input
+            value={draft.certificationProfile.citizenNumber}
+            onChange={(event) =>
+              onUpdateCertificationProfile("citizenNumber", event.target.value)
+            }
+            className={inputClass}
+            placeholder="Citizen or government ID number"
+          />
         </Field>
         <Field label="Years Training">
           <select
@@ -865,6 +1020,45 @@ function CertificationStep({
             />
           </Field>
         )}
+        <Field label="Current Rank Issue Date">
+          <input
+            type="date"
+            value={draft.certificationProfile.currentRankIssueDate}
+            onChange={(event) =>
+              onUpdateCertificationProfile(
+                "currentRankIssueDate",
+                event.target.value
+              )
+            }
+            className={inputClass}
+          />
+        </Field>
+        <Field label="Current Rank Number">
+          <input
+            value={draft.certificationProfile.currentRankNumber}
+            onChange={(event) =>
+              onUpdateCertificationProfile(
+                "currentRankNumber",
+                event.target.value
+              )
+            }
+            className={inputClass}
+            placeholder="Rank certificate or ledger number"
+          />
+        </Field>
+        <Field label="Recommender">
+          <input
+            value={draft.certificationProfile.recommenderName}
+            onChange={(event) =>
+              onUpdateCertificationProfile(
+                "recommenderName",
+                event.target.value
+              )
+            }
+            className={inputClass}
+            placeholder="Recommending master or branch director"
+          />
+        </Field>
         <div className={cn(needsSchoolName ? "" : "md:col-span-2")}>
           <Field label="Additional Notes">
             <textarea
@@ -1364,6 +1558,7 @@ function InheritedRegistrationItem({
 
 function DetailsStep({
   draft,
+  currentFlow,
   onSelectRankDanLevel,
   onUpdateSchool,
   onAddPromotionHistory,
@@ -1376,6 +1571,7 @@ function DetailsStep({
   onVerifyMasterKey,
 }: {
   draft: ApplicationDraft;
+  currentFlow?: ApplicationFlow;
   onSelectRankDanLevel: (danLevelId: DanLevelId) => void;
   onUpdateSchool: (field: SchoolTextField, value: string) => void;
   onAddPromotionHistory: () => void;
@@ -1396,6 +1592,14 @@ function DetailsStep({
 }) {
   const needsRankLevel = draft.selectedServices.includes("rank-registration");
   const needsSchool = draft.selectedServices.includes("school-registration");
+  const rankSectionTitle =
+    draft.applicationFlowId === "whmaf-promotion"
+      ? "Promotion Dan Level"
+      : "Rank Registration Dan Level";
+  const rankSectionDescription =
+    draft.applicationFlowId === "whmaf-promotion"
+      ? "Select the Dan level for the WHMAF promotion packet. Pricing changes by Dan level and applies the 40% markup to your internal cost."
+      : "Select the Dan level being registered. Each level carries its own billable registration cost.";
 
   return (
     <section>
@@ -1491,14 +1695,17 @@ function DetailsStep({
       {needsRankLevel && (
         <div className="mt-10">
           <h3 className="text-sm font-bold uppercase tracking-wider text-white">
-            Rank Registration Dan Level
+            {rankSectionTitle}
           </h3>
           <p className="mt-2 max-w-2xl text-sm leading-relaxed text-white/45">
-            Select the Dan level being registered. Each level carries its own
-            billable registration cost.
+            {rankSectionDescription}
           </p>
           <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {DAN_LEVEL_COSTS.map((level) => {
+              const pricedLevel = getDanLevelCost(
+                level.id,
+                draft.applicationFlowId
+              );
               const selected = draft.rankDanLevelId === level.id;
               return (
                 <label
@@ -1523,7 +1730,7 @@ function DetailsStep({
                       {level.label}
                     </span>
                     <span className="mt-1 block text-sm text-korma-gold">
-                      {level.costPlaceholder}
+                      {pricedLevel?.costPlaceholder ?? level.costPlaceholder}
                     </span>
                     <span className="mt-4 grid gap-3">
                       <DanUploadField
@@ -2046,8 +2253,13 @@ function ApplicationCompletionPlaceholders({
 }: {
   draft: ApplicationDraft;
 }) {
-  const selectedServices = draft.selectedServices;
+  const selectedServices = orderServiceIdsForFlow(
+    draft.applicationFlowId,
+    draft.selectedServices
+  );
   if (selectedServices.length === 0) return null;
+
+  const isWhmaf = draft.applicationFlowId === "whmaf-promotion";
 
   return (
     <div className="mt-10 space-y-5">
@@ -2055,7 +2267,52 @@ function ApplicationCompletionPlaceholders({
         Application Sections
       </h3>
 
-      {selectedServices.includes("school-registration") && (
+      {isWhmaf && selectedServices.includes("rank-registration") && (
+        <PlaceholderCard
+          title="1. Application for Promotion Test (WHMAF)"
+          status="To be completed"
+          fields={[
+            "Nation, sex, and date of birth",
+            "Present rank, issue date, and rank number",
+            "Applied Dan level and fee",
+            "Passport-size photo upload",
+            "Copy of current certificate",
+            "Dojang name and recommender",
+          ]}
+        />
+      )}
+
+      {isWhmaf && selectedServices.includes("instructor-certification") && (
+        <PlaceholderCard
+          title="2. Instructor Promotion Test (WHMAF)"
+          status="To be completed"
+          fields={[
+            "Instructor promotion form details",
+            "Applicant signature",
+            "Phone number",
+            "Dojang name",
+            "Recommender details",
+            "Supporting rank history",
+          ]}
+        />
+      )}
+
+      {isWhmaf && selectedServices.includes("school-registration") && (
+        <PlaceholderCard
+          title="3. Organization Registration Forms (WHMAF)"
+          status="To be completed"
+          fields={[
+            "Nation",
+            "Gymnasium name",
+            "Master name",
+            "Citizen number",
+            "Gym address and telephone",
+            "Organization registration signature",
+          ]}
+        />
+      )}
+
+      {!isWhmaf && selectedServices.includes("school-registration") && (
         <PlaceholderCard
           title="School Registration Application"
           status="To be completed"
@@ -2070,7 +2327,7 @@ function ApplicationCompletionPlaceholders({
         />
       )}
 
-      {selectedServices.includes("rank-registration") && (
+      {!isWhmaf && selectedServices.includes("rank-registration") && (
         <PlaceholderCard
           title="Rank Registration Application"
           status="To be completed"
@@ -2089,7 +2346,7 @@ function ApplicationCompletionPlaceholders({
         />
       )}
 
-      {selectedServices.includes("instructor-certification") && (
+      {!isWhmaf && selectedServices.includes("instructor-certification") && (
         <PlaceholderCard
           title="Instructor Certification Application"
           status="To be completed"
@@ -2127,10 +2384,42 @@ function BillingPlaceholder({
 }: {
   draft: ApplicationDraft;
 }) {
-  const services = draft.selectedServices
-    .map((serviceId) => getService(serviceId))
+  const services = orderServiceIdsForFlow(
+    draft.applicationFlowId,
+    draft.selectedServices
+  )
+    .map(
+      (serviceId) =>
+        getFlowService(draft.applicationFlowId, serviceId) ??
+        getService(serviceId)
+    )
     .filter((service): service is ApplicationService => Boolean(service));
-  const selectedDanLevel = getDanLevelCost(draft.rankDanLevelId);
+  const selectedDanLevel = getDanLevelCost(
+    draft.rankDanLevelId,
+    draft.applicationFlowId
+  );
+  const knownLineAmounts = services.map((service) =>
+    service.id === "rank-registration"
+      ? selectedDanLevel?.amountCents
+      : getServiceAmountCents(draft.applicationFlowId, service.id)
+  );
+  const totalAmountCents = knownLineAmounts.every(
+    (amount) => typeof amount === "number"
+  )
+    ? knownLineAmounts.reduce((sum, amount) => sum + (amount ?? 0), 0)
+    : undefined;
+  const downPayment = totalAmountCents
+    ? Math.round(totalAmountCents * 0.1)
+    : undefined;
+  const interest = totalAmountCents
+    ? Math.round(totalAmountCents * 0.05)
+    : undefined;
+  const subscriptionBalance =
+    typeof totalAmountCents === "number" &&
+    typeof downPayment === "number" &&
+    typeof interest === "number"
+      ? totalAmountCents + interest - downPayment
+      : undefined;
 
   return (
     <div className="rounded-xl border border-korma-gold/25 bg-korma-gold/10 p-5">
@@ -2162,7 +2451,14 @@ function BillingPlaceholder({
             <span className="text-sm text-korma-gold">
               {service.id === "rank-registration"
                 ? selectedDanLevel?.costPlaceholder ?? "Select Dan level"
-                : service.pricePlaceholder}
+                : getServiceAmountCents(draft.applicationFlowId, service.id)
+                  ? formatUsd(
+                      getServiceAmountCents(
+                        draft.applicationFlowId,
+                        service.id
+                      ) ?? 0
+                    )
+                  : service.pricePlaceholder}
             </span>
           </div>
         ))}
@@ -2187,7 +2483,9 @@ function BillingPlaceholder({
             Estimated total
           </span>
           <span className="text-sm text-korma-gold">
-            Calculated after pricing is configured
+            {typeof totalAmountCents === "number"
+              ? formatUsd(totalAmountCents)
+              : "Calculated after remaining pricing is configured"}
           </span>
         </div>
         <div className="rounded-lg border border-korma-gold/20 bg-korma-dark/30 px-4 py-4">
@@ -2197,15 +2495,27 @@ function BillingPlaceholder({
           <div className="mt-3 grid gap-3 sm:grid-cols-2">
             <PaymentPlanLine
               label="Down payment"
-              value="10% of approved bill subtotal"
+              value={
+                typeof downPayment === "number"
+                  ? formatUsd(downPayment)
+                  : "10% of approved bill subtotal"
+              }
             />
             <PaymentPlanLine
               label="Interest"
-              value="5% added to approved bill subtotal"
+              value={
+                typeof interest === "number"
+                  ? formatUsd(interest)
+                  : "5% added to approved bill subtotal"
+              }
             />
             <PaymentPlanLine
               label="Subscription balance"
-              value="Subtotal + interest - down payment"
+              value={
+                typeof subscriptionBalance === "number"
+                  ? formatUsd(subscriptionBalance)
+                  : "Subtotal + interest - down payment"
+              }
             />
             <PaymentPlanLine
               label="Disclosure"
@@ -2273,12 +2583,14 @@ function PlaceholderCard({
 
 function ReviewStep({
   draft,
+  currentFlow,
   readyForReview,
   selectedDanLevel,
   selectedServices,
   selectedArts,
 }: {
   draft: ApplicationDraft;
+  currentFlow?: ApplicationFlow;
   readyForReview: boolean;
   selectedDanLevel?: ReturnType<typeof getDanLevelCost>;
   selectedServices: ApplicationService[];
@@ -2296,10 +2608,29 @@ function ReviewStep({
           icon={Award}
           title="Certification intake"
           values={[
+            currentFlow?.title ? `Flow: ${currentFlow.title}` : "",
             ...selectedServices.map((service) => service?.title ?? ""),
             ...selectedArts.map((art) => art?.title ?? ""),
+            draft.certificationProfile.dateOfBirth
+              ? `Date of birth: ${draft.certificationProfile.dateOfBirth}`
+              : "",
+            draft.certificationProfile.nation
+              ? `Nation: ${draft.certificationProfile.nation}`
+              : "",
+            draft.certificationProfile.sex
+              ? `Sex: ${draft.certificationProfile.sex}`
+              : "",
+            draft.certificationProfile.citizenNumber
+              ? `Citizen No.: ${draft.certificationProfile.citizenNumber}`
+              : "",
             draft.certificationProfile.currentRank
               ? `Current rank: ${draft.certificationProfile.currentRank}`
+              : "",
+            draft.certificationProfile.currentRankIssueDate
+              ? `Issue date: ${draft.certificationProfile.currentRankIssueDate}`
+              : "",
+            draft.certificationProfile.currentRankNumber
+              ? `Rank number: ${draft.certificationProfile.currentRankNumber}`
               : "",
             draft.certificationProfile.yearsTraining
               ? `Years training: ${draft.certificationProfile.yearsTraining}`
@@ -2309,6 +2640,9 @@ function ReviewStep({
               : "",
             draft.certificationProfile.instructorName
               ? `Instructor: ${draft.certificationProfile.instructorName}`
+              : "",
+            draft.certificationProfile.recommenderName
+              ? `Recommender: ${draft.certificationProfile.recommenderName}`
               : "",
             draft.certificationProfile.notes
               ? `Notes: ${draft.certificationProfile.notes}`

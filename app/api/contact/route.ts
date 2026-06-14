@@ -41,7 +41,7 @@ export async function POST(req: NextRequest) {
       organization: string;
       groupSize: string;
       preferredDate: string;
-      duplicateConfirmed?: boolean;
+      duplicateConfirmed?: boolean | string;
     };
     const {
       name,

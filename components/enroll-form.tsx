@@ -53,6 +53,17 @@ const PROGRAMS: Program[] = [
     inquiryType: "regular_class",
   },
   {
+    id: "test",
+    Icon: CreditCard,
+    label: "Test Enrollment",
+    description:
+      "Minimum Stripe checkout test to confirm payment processing is working.",
+    price: 50,
+    priceLabel: "$0.50",
+    type: "payment",
+    inquiryType: "regular_class",
+  },
+  {
     id: "taekwondo",
     Icon: Shield,
     label: "Taekwondo Changmookwan - Monthly",
@@ -181,6 +192,7 @@ export function EnrollForm() {
     name: "",
     email: "",
     phone: "",
+    dateOfBirth: "",
     participants: "1",
     message: "",
   });
@@ -203,7 +215,8 @@ export function EnrollForm() {
   const canGoStep3 =
     form.name.trim().length > 1 &&
     form.email.includes("@") &&
-    form.phone.trim().length > 7;
+    form.phone.trim().length > 7 &&
+    form.dateOfBirth.trim().length > 0;
 
   function field(key: keyof typeof form, value: string) {
     setForm((f) => ({ ...f, [key]: value }));
@@ -299,6 +312,7 @@ export function EnrollForm() {
           name: form.name,
           email: form.email,
           phone: form.phone,
+          dateOfBirth: form.dateOfBirth,
           participants: form.participants,
           message: form.message,
           promotionCodeId: appliedDiscount?.promotionCodeId ?? null,
@@ -577,6 +591,19 @@ export function EnrollForm() {
                   />
                 </div>
 
+                <div>
+                  <label className="block text-white/60 text-xs uppercase tracking-wider mb-1.5">
+                    Date of Birth *
+                  </label>
+                  <input
+                    type="date"
+                    value={form.dateOfBirth}
+                    onChange={(e) => field("dateOfBirth", e.target.value)}
+                    className="w-full bg-white/5 border border-white/15 text-white placeholder:text-white/25 px-4 py-3 text-sm focus:outline-none focus:border-korma-gold/60 transition-colors"
+                    required
+                  />
+                </div>
+
                 <AnimatePresence>
                   {selectedProgram?.id === "seminar-individual" && (
                     <motion.div
@@ -698,6 +725,10 @@ export function EnrollForm() {
                     <div className="flex justify-between text-xs">
                       <span className="text-white/40">Phone</span>
                       <span className="text-white/70">{form.phone}</span>
+                    </div>
+                    <div className="flex justify-between text-xs">
+                      <span className="text-white/40">Date of Birth</span>
+                      <span className="text-white/70">{form.dateOfBirth}</span>
                     </div>
                   </div>
 

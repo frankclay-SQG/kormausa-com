@@ -46,6 +46,7 @@ export async function POST(req: NextRequest) {
       lastname: lastName,
       email,
       phone: phone ?? "",
+      korma_date_of_birth: dateOfBirth ?? "",
     },
   });
 

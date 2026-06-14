@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>KORMA-USA Privacy Policy Preview</title>
+    <style>
+      :root {
+        --bg: #07111f;
+        --bg-soft: #0c1830;
+        --panel: rgba(255, 255, 255, 0.03);
+        --border: rgba(255, 255, 255, 0.1);
+        --gold: #d4af37;
+        --text: #f8fafc;
+        --muted: rgba(248, 250, 252, 0.68);
+        --muted-soft: rgba(248, 250, 252, 0.45);
+        --shadow: 0 30px 80px rgba(0, 0, 0, 0.28);
+        font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        background:
+          radial-gradient(circle at top left, rgba(30, 58, 138, 0.28), transparent 34%),
+          linear-gradient(180deg, #08111d 0%, #091524 100%);
+        color: var(--text);
+      }
+
+      .hero {
+        border-bottom: 1px solid var(--border);
+        background: rgba(8, 17, 29, 0.72);
+      }
+
+      .hero-inner,
+      .content,
+      .footer {
+        width: min(100%, 1040px);
+        margin: 0 auto;
+        padding-left: 24px;
+        padding-right: 24px;
+      }
+
+      .hero-inner {
+        padding-top: 88px;
+        padding-bottom: 56px;
+      }
+
+      .meta {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 14px;
+        align-items: center;
+        font-size: 12px;
+        font-weight: 700;
+        letter-spacing: 0.22em;
+        text-transform: uppercase;
+        color: var(--muted-soft);
+      }
+
+      .dot {
+        width: 4px;
+        height: 4px;
+        border-radius: 999px;
+        background: var(--gold);
+      }
+
+      h1 {
+        margin: 22px 0 0;
+        max-width: 760px;
+        font-size: clamp(42px, 7vw, 68px);
+        line-height: 0.98;
+        font-weight: 900;
+      }
+
+      .summary {
+        margin: 20px 0 0;
+        max-width: 760px;
+        font-size: 18px;
+        line-height: 1.75;
+        color: var(--muted);
+      }
+
+      .actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px;
+        margin-top: 28px;
+      }
+
+      .button {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        padding: 13px 18px;
+        border-radius: 10px;
+        border: 1px solid transparent;
+        font-size: 14px;
+        font-weight: 700;
+        text-decoration: none;
+      }
+
+      .button.secondary {
+        border-color: var(--border);
+        color: var(--text);
+      }
+
+      .button.primary {
+        background: var(--gold);
+        color: #07111f;
+      }
+
+      .content {
+        padding-top: 42px;
+        padding-bottom: 56px;
+      }
+
+      .section {
+        border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+        padding: 0 0 34px;
+        margin: 0 0 34px;
+      }
+
+      .section:last-child {
+        border-bottom: 0;
+        margin-bottom: 0;
+        padding-bottom: 0;
+      }
+
+      h2 {
+        margin: 0;
+        font-size: 30px;
+        font-weight: 900;
+        line-height: 1.1;
+      }
+
+      p {
+        margin: 16px 0 0;
+        font-size: 15px;
+        line-height: 1.8;
+        color: var(--muted);
+      }
+
+      .notice {
+        margin-top: 16px;
+        border: 1px solid rgba(212, 175, 55, 0.28);
+        background: rgba(212, 175, 55, 0.08);
+        border-radius: 18px;
+        padding: 18px 20px;
+        box-shadow: var(--shadow);
+      }
+
+      .notice strong {
+        color: var(--text);
+      }
+
+      ul {
+        list-style: none;
+        padding: 0;
+        margin: 18px 0 0;
+      }
+
+      li {
+        display: flex;
+        gap: 12px;
+        align-items: flex-start;
+        margin-top: 12px;
+        color: var(--muted);
+        font-size: 15px;
+        line-height: 1.75;
+      }
+
+      li::before {
+        content: "";
+        width: 6px;
+        height: 6px;
+        margin-top: 11px;
+        border-radius: 999px;
+        background: var(--gold);
+        flex-shrink: 0;
+      }
+
+      a {
+        color: var(--gold);
+        text-decoration: none;
+      }
+
+      .footer-wrap {
+        border-top: 1px solid rgba(255, 255, 255, 0.08);
+        background: rgba(8, 17, 29, 0.92);
+      }
+
+      .footer {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: space-between;
+        gap: 16px;
+        padding-top: 24px;
+        padding-bottom: 24px;
+      }
+
+      .footer-copy {
+        color: rgba(248, 250, 252, 0.3);
+        font-size: 12px;
+      }
+
+      .footer-links {
+        display: flex;
+        gap: 20px;
+        font-size: 12px;
+      }
+
+      @media (max-width: 720px) {
+        .hero-inner {
+          padding-top: 72px;
+          padding-bottom: 42px;
+        }
+
+        h2 {
+          font-size: 26px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <section class="hero">
+      <div class="hero-inner">
+        <div class="meta">
+          <span>Privacy Policy</span>
+          <span class="dot"></span>
+          <span>Effective June 14, 2026</span>
+        </div>
+        <h1>Privacy Policy</h1>
+        <p class="summary">
+          This Privacy Policy explains how KORMA-USA collects, uses, shares,
+          and retains personal information when you use our website, request
+          information, register, apply for services, sign a waiver, enroll in
+          programs, or communicate with us.
+        </p>
+        <div class="actions">
+          <span class="button secondary">Back to Home</span>
+          <span class="button primary">Applications</span>
+        </div>
+      </div>
+    </section>
+
+    <main class="content">
+      <section class="section">
+        <h2>Important Notice</h2>
+        <div class="notice">
+          <strong>KORMA-USA does not sell personally identifiable information (PII) or customer data, whether through this website or in any other way.</strong>
+        </div>
+        <p>
+          KORMA-USA may share limited personally identifiable information as
+          reasonably necessary with Korean martial arts governing,
+          certifying, or rank-issuing bodies in connection with rank
+          registration, certification review, promotion processing, lineage
+          verification, and related administrative requirements.
+        </p>
+      </section>
+
+      <section class="section">
+        <h2>1. Scope</h2>
+        <p>
+          This Privacy Policy applies to information collected through the
+          KORMA-USA website, online forms, application workflows, billing
+          communications, and related digital services.
+        </p>
+      </section>
+
+      <section class="section">
+        <h2>2. Information We Collect</h2>
+        <ul>
+          <li>Contact details such as your name, email address, phone number, mailing address, and communication preferences.</li>
+          <li>Program, inquiry, registration, and application details you submit through our forms.</li>
+          <li>Waiver and safety information, including emergency contacts, guardian details, signatures, and consent choices.</li>
+          <li>Address validation data returned by Google services, including standardized address data and place identifiers.</li>
+          <li>Technical and preference data, including cookie-consent choices and locally stored application drafts.</li>
+        </ul>
+      </section>
+
+      <section class="section">
+        <h2>3. How We Use Information</h2>
+        <ul>
+          <li>Respond to inquiries and provide information about classes, seminars, and services.</li>
+          <li>Create and maintain contact, inquiry, registration, waiver, and application records.</li>
+          <li>Process enrollments, billing communications, and administrative workflows.</li>
+          <li>Validate mailing addresses before accepting address-based submissions.</li>
+          <li>Prevent duplicate records and keep CRM data accurate.</li>
+        </ul>
+      </section>
+
+      <section class="section">
+        <h2>4. Third-Party Services We Use</h2>
+        <ul>
+          <li><strong>HubSpot</strong> for CRM records, inquiry tracking, and application workflows.</li>
+          <li><strong>Google Maps / Google Places / Google Address Validation</strong> to search, validate, and standardize mailing addresses.</li>
+          <li><strong>Stripe</strong> to create checkout sessions for paid enrollments.</li>
+          <li><strong>Resend</strong> for billing email delivery where that workflow is used.</li>
+        </ul>
+      </section>
+
+      <section class="section">
+        <h2>5. How We Share Information</h2>
+        <p>
+          We do not sell personal information through this website. We may
+          share information with service providers that help us run the site and
+          support KORMA-USA operations, and when required by law or to protect
+          rights, safety, or security.
+        </p>
+      </section>
+
+      <section class="section">
+        <h2>6. Contact Us</h2>
+        <p>
+          Questions or privacy requests can be sent to
+          <a href="mailto:info@kormausa.com"> info@kormausa.com</a> or
+          <a href="mailto:masterclay@kormausa.com"> masterclay@kormausa.com</a>.
+        </p>
+      </section>
+    </main>
+
+    <div class="footer-wrap">
+      <div class="footer">
+        <div class="footer-copy">
+          © 2026 KORMA-USA — Korean Martial Arts Association. All rights reserved.
+        </div>
+        <div class="footer-links">
+          <span>Privacy Policy</span>
+          <span>Terms of Service</span>
+        </div>
+      </div>
+    </div>
+  </body>
+</html>

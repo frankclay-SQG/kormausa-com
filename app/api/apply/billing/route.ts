@@ -31,6 +31,7 @@ export async function POST(req: NextRequest) {
 
     const bill = buildApplicationBill({
       applicationId: body.applicationId,
+      applicationFlowId: body.applicationFlowId,
       submitterEmail,
       submitterName: body.submitterName,
       selectedServices: body.selectedServices,

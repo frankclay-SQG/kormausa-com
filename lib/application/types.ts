@@ -3,6 +3,8 @@ export type ApplicationServiceId =
   | "rank-registration"
   | "instructor-certification";
 
+export type ApplicationFlowId = "standard" | "whmaf-promotion";
+
 export type MartialArtId = "taekwondo" | "hapkido" | "kumdo";
 
 export type DanLevelId =
@@ -17,6 +19,16 @@ export type DanLevelId =
   | "9th-dan";
 
 export type DraftStatus = "new" | "draft" | "ready-for-review";
+
+export interface ApplicationFlow {
+  id: ApplicationFlowId;
+  title: string;
+  description: string;
+  helperText: string;
+  serviceOrder: ApplicationServiceId[];
+  lockedServices?: ApplicationServiceId[];
+  lockedArts?: MartialArtId[];
+}
 
 export interface ApplicationService {
   id: ApplicationServiceId;
@@ -40,6 +52,7 @@ export interface DanLevelCost {
   id: DanLevelId;
   label: string;
   costPlaceholder: string;
+  amountCents?: number;
 }
 
 export interface DanTestingRequirement {
@@ -67,10 +80,17 @@ export interface SchoolDraft {
 }
 
 export interface CertificationProfileDraft {
+  dateOfBirth: string;
+  nation: string;
+  sex: "" | "M" | "F";
+  citizenNumber: string;
   currentRank: string;
+  currentRankIssueDate: string;
+  currentRankNumber: string;
   yearsTraining: string;
   currentOrg: string;
   instructorName: string;
+  recommenderName: string;
   notes: string;
 }
 
@@ -120,6 +140,7 @@ export interface ApplicationRegistration {
 export interface ApplicationDraft {
   id: string;
   status: DraftStatus;
+  applicationFlowId: ApplicationFlowId;
   registration: ApplicationRegistration;
   submitterName: string;
   submitterEmail: string;

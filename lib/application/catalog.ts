@@ -1,4 +1,6 @@
 import type {
+  ApplicationFlow,
+  ApplicationFlowId,
   ApplicationService,
   ApplicationServiceId,
   DanTestingRequirement,
@@ -7,6 +9,41 @@ import type {
   MartialArt,
   MartialArtId,
 } from "@/lib/application/types";
+
+const STANDARD_SERVICE_ORDER: ApplicationServiceId[] = [
+  "school-registration",
+  "rank-registration",
+  "instructor-certification",
+];
+
+const WHMAF_SERVICE_ORDER: ApplicationServiceId[] = [
+  "rank-registration",
+  "instructor-certification",
+  "school-registration",
+];
+
+export const APPLICATION_FLOWS: ApplicationFlow[] = [
+  {
+    id: "standard",
+    title: "KORMA-USA Standard",
+    description:
+      "Flexible KORMA-USA application flow for school registration, rank registration, and instructor certification.",
+    helperText:
+      "Choose the services and martial arts involved, then complete the shared registration and application details.",
+    serviceOrder: STANDARD_SERVICE_ORDER,
+  },
+  {
+    id: "whmaf-promotion",
+    title: "WHMAF Promotion Submission",
+    description:
+      "Official WHMAF promotion packet with rank, instructor, and organization forms completed in the required order.",
+    helperText:
+      "This path uses WHMAF promotion wording, locks the application order, and applies WHMAF-specific pricing.",
+    serviceOrder: WHMAF_SERVICE_ORDER,
+    lockedServices: WHMAF_SERVICE_ORDER,
+    lockedArts: ["hapkido"],
+  },
+];
 
 export const APPLICATION_SERVICES: ApplicationService[] = [
   {
@@ -176,6 +213,25 @@ export const DAN_LEVEL_COSTS: DanLevelCost[] = [
   },
 ];
 
+const WHMAF_PRICE_MARKUP = 1.4;
+
+const WHMAF_SERVICE_PRICE_CENTS: Partial<Record<ApplicationServiceId, number>> = {
+  "school-registration": markedUpUsd(300),
+  "instructor-certification": markedUpUsd(300),
+};
+
+const WHMAF_DAN_LEVEL_PRICE_CENTS: Partial<Record<DanLevelId, number>> = {
+  "1st-dan": markedUpUsd(70),
+  "2nd-dan": markedUpUsd(90),
+  "3rd-dan": markedUpUsd(120),
+  "4th-dan": markedUpUsd(150),
+  "5th-dan": markedUpUsd(300),
+  "6th-dan": markedUpUsd(350),
+  "7th-dan": markedUpUsd(450),
+  "8th-dan": markedUpUsd(500),
+  "9th-dan": markedUpUsd(600),
+};
+
 export const DAN_TESTING_REQUIREMENTS: DanTestingRequirement[] = [
   {
     targetDanLevelId: "1st-dan",
@@ -259,9 +315,106 @@ export function getMartialArt(id: MartialArtId) {
   return MARTIAL_ARTS.find((art) => art.id === id);
 }
 
-export function getDanLevelCost(id: DanLevelId | "") {
+export function getApplicationFlow(id: ApplicationFlowId) {
+  return APPLICATION_FLOWS.find((flow) => flow.id === id);
+}
+
+export function getFlowService(
+  flowId: ApplicationFlowId,
+  serviceId: ApplicationServiceId
+) {
+  const service = getService(serviceId);
+  if (!service) return undefined;
+
+  if (flowId !== "whmaf-promotion") {
+    return service;
+  }
+
+  switch (serviceId) {
+    case "rank-registration":
+      return {
+        ...service,
+        title: "Application for Promotion Test",
+        shortTitle: "Promotion",
+        description:
+          "Complete the official WHMAF promotion-test application for the selected Dan level.",
+        idealFor: "WHMAF promotion applicants",
+        pricePlaceholder: "Dan-level promotion fee",
+        requiredArtifacts: [
+          "Nation, sex, and date of birth",
+          "Present rank, issue date, and rank number",
+          "Passport-size photo",
+          "Current certificate",
+        ],
+      };
+    case "instructor-certification":
+      return {
+        ...service,
+        title: "Instructor Promotion Test",
+        shortTitle: "Instructor",
+        description:
+          "Complete the official WHMAF instructor promotion form in the second step of the packet.",
+        idealFor: "WHMAF instructor applicants",
+        pricePlaceholder: formatUsd(WHMAF_SERVICE_PRICE_CENTS[serviceId] ?? 0),
+        requiredArtifacts: [
+          "Instructor promotion form",
+          "Recommender details",
+          "Dojang name",
+          "Supporting rank evidence",
+        ],
+      };
+    case "school-registration":
+      return {
+        ...service,
+        title: "Organization Registration",
+        shortTitle: "Organization",
+        description:
+          "Complete the official WHMAF organization registration form after the promotion and instructor steps.",
+        idealFor: "WHMAF affiliated schools and gymnasiums",
+        pricePlaceholder: formatUsd(WHMAF_SERVICE_PRICE_CENTS[serviceId] ?? 0),
+        requiredArtifacts: [
+          "Gymnasium name",
+          "Master name",
+          "Gym address and telephone",
+          "Organization registration signature",
+        ],
+      };
+    default:
+      return service;
+  }
+}
+
+export function orderServiceIdsForFlow(
+  flowId: ApplicationFlowId,
+  selectedServiceIds: ApplicationServiceId[]
+) {
+  const flow = getApplicationFlow(flowId);
+  const preferredOrder = flow?.serviceOrder ?? STANDARD_SERVICE_ORDER;
+  const selected = new Set(selectedServiceIds);
+
+  return preferredOrder.filter((serviceId) => selected.has(serviceId));
+}
+
+export function getDanLevelCost(
+  id: DanLevelId | "",
+  flowId: ApplicationFlowId = "standard"
+) {
   if (!id) return undefined;
-  return DAN_LEVEL_COSTS.find((level) => level.id === id);
+  const level = DAN_LEVEL_COSTS.find((entry) => entry.id === id);
+  if (!level) return undefined;
+
+  if (flowId !== "whmaf-promotion") {
+    return level;
+  }
+
+  const amountCents = WHMAF_DAN_LEVEL_PRICE_CENTS[id];
+  return {
+    ...level,
+    amountCents,
+    costPlaceholder: amountCents
+      ? `${formatUsd(amountCents)} promotion fee`
+      : "Promotion fee to be configured",
+  };
 }
 
 export function getDanTestingRequirement(id: DanLevelId | "") {
@@ -269,4 +422,26 @@ export function getDanTestingRequirement(id: DanLevelId | "") {
   return DAN_TESTING_REQUIREMENTS.find(
     (requirement) => requirement.targetDanLevelId === id
   );
+}
+
+export function formatUsd(amountCents: number) {
+  return new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: "USD",
+  }).format(amountCents / 100);
+}
+
+function markedUpUsd(amount: number) {
+  return Math.round(amount * WHMAF_PRICE_MARKUP * 100);
+}
+
+export function getServiceAmountCents(
+  flowId: ApplicationFlowId,
+  serviceId: ApplicationServiceId
+) {
+  if (flowId !== "whmaf-promotion") {
+    return undefined;
+  }
+
+  return WHMAF_SERVICE_PRICE_CENTS[serviceId];
 }

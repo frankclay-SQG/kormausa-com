@@ -8,6 +8,14 @@ import {
 const HS_BASE = "https://api.hubapi.com";
 const STRIPE_BASE = "https://api.stripe.com/v1";
 
+const PROGRAM_UNIT_AMOUNTS_CENTS: Record<string, number> = {
+  test: 50,
+  taekwondo: 15000,
+  hapkido: 15000,
+  kumdo: 15000,
+  "seminar-individual": 7500,
+};
+
 // Set NEXT_PUBLIC_BASE_URL in Vercel env vars (e.g. https://kormausa.com)
 const BASE_URL =
   process.env.NEXT_PUBLIC_BASE_URL ??
@@ -23,11 +31,11 @@ export async function POST(req: NextRequest) {
     programId,
     programLabel,
     programType,
-    priceInCents,
     inquiryType,
     name,
     email,
     phone,
+    dateOfBirth,
     participants,
     message,
     promotionCodeId,   // ← optional: validated Stripe promo code ID
@@ -36,11 +44,11 @@ export async function POST(req: NextRequest) {
     programId: string;
     programLabel: string;
     programType: "free" | "payment" | "quote";
-    priceInCents: number;
     inquiryType: string;
     name: string;
     email: string;
     phone: string;
+    dateOfBirth: string;
     participants: string;
     message: string;
     promotionCodeId?: string | null;
@@ -48,6 +56,13 @@ export async function POST(req: NextRequest) {
   } = body;
 
   const headers = createHubSpotHeaders(hsToken);
+
+  if (!dateOfBirth?.trim()) {
+    return NextResponse.json(
+      { error: "Date of birth is required" },
+      { status: 400 }
+    );
+  }
 
   // ── 1. Create or resolve HubSpot contact ────────────────────────────────
   const { firstName, lastName } = splitName(name);
@@ -63,6 +78,7 @@ export async function POST(req: NextRequest) {
       lastname: lastName,
       email,
       phone: phone ?? "",
+      korma_date_of_birth: dateOfBirth ?? "",
       korma_inquiry_type: inquiryType,
     },
   });
@@ -87,6 +103,7 @@ export async function POST(req: NextRequest) {
       inquiryType,
       contactId,
       amount: 0,
+      dateOfBirth,
     });
 
     if (programType === "free") {
@@ -107,6 +124,14 @@ export async function POST(req: NextRequest) {
     programId === "seminar-individual"
       ? Math.max(1, parseInt(participants || "1", 10))
       : 1;
+  const unitAmountCents = PROGRAM_UNIT_AMOUNTS_CENTS[programId];
+
+  if (!unitAmountCents) {
+    return NextResponse.json(
+      { error: "Invalid paid program selected" },
+      { status: 400 }
+    );
+  }
 
   const stripeParams = new URLSearchParams();
   stripeParams.append(
@@ -128,12 +153,13 @@ export async function POST(req: NextRequest) {
   );
   stripeParams.append(
     "line_items[0][price_data][unit_amount]",
-    String(priceInCents)
+    String(unitAmountCents)
   );
   stripeParams.append("line_items[0][quantity]", String(qty));
   stripeParams.append("metadata[hubspot_contact_id]", contactId);
   stripeParams.append("metadata[program_id]", programId);
   stripeParams.append("metadata[inquiry_type]", inquiryType);
+  stripeParams.append("metadata[date_of_birth]", dateOfBirth);
 
   // Apply promo code if provided; otherwise allow Stripe to show a code field
   if (promotionCodeId) {
@@ -172,6 +198,7 @@ async function createHubSpotDeal(
     inquiryType: string;
     contactId: string;
     amount: number;
+    dateOfBirth: string;
   }
 ) {
   const dealRes = await fetch(`${HS_BASE}/crm/v3/objects/deals`, {
@@ -183,6 +210,9 @@ async function createHubSpotDeal(
         pipeline: "default",
         dealstage: "appointmentscheduled",
         amount: opts.amount > 0 ? String(opts.amount / 100) : "0",
+        description: opts.dateOfBirth
+          ? `Date of Birth: ${opts.dateOfBirth}`
+          : undefined,
       },
     }),
   });

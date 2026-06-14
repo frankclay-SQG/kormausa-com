@@ -1,29 +1,57 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { Loader2, Mail, X } from "lucide-react";
+import { Loader2, Mail, MapPin, Search, X } from "lucide-react";
 import { DuplicateConfirmationDialog } from "@/components/duplicate-confirmation-dialog";
+import type {
+  AddressValidationStatus,
+  GoogleAddressSuggestion,
+  GoogleAddressValidationResult,
+} from "@/lib/application/google-address";
 import type { HubSpotDuplicateCandidate } from "@/lib/hubspot/contacts";
+import { cn } from "@/lib/utils";
 
 interface ChurchHillFormState {
   name: string;
-  address: string;
   phone: string;
   email: string;
   allowTexts: boolean;
   allowEmails: boolean;
   previousExperience: string;
+  addressLine1: string;
+  addressLine2: string;
+  city: string;
+  state: string;
+  postalCode: string;
+  formattedAddress: string;
+  googlePlaceId: string;
+  googleMapsUri: string;
+  addressValidationStatus: AddressValidationStatus;
+  addressValidationMessage: string;
+  addressValidatedAt: string;
 }
+
+type AddressSearchState = "idle" | "searching" | "validating";
 
 const INITIAL_FORM: ChurchHillFormState = {
   name: "",
-  address: "",
   phone: "",
   email: "",
   allowTexts: false,
   allowEmails: false,
   previousExperience: "",
+  addressLine1: "",
+  addressLine2: "",
+  city: "",
+  state: "",
+  postalCode: "",
+  formattedAddress: "",
+  googlePlaceId: "",
+  googleMapsUri: "",
+  addressValidationStatus: "unverified",
+  addressValidationMessage: "",
+  addressValidatedAt: "",
 };
 
 export function ChurchHillVacationNotice() {
@@ -34,13 +62,88 @@ export function ChurchHillVacationNotice() {
   const [submitted, setSubmitted] = useState(false);
   const [duplicates, setDuplicates] = useState<HubSpotDuplicateCandidate[]>([]);
   const [form, setForm] = useState<ChurchHillFormState>(INITIAL_FORM);
+  const [addressQuery, setAddressQuery] = useState("");
+  const [suggestions, setSuggestions] = useState<GoogleAddressSuggestion[]>([]);
+  const [addressSearchState, setAddressSearchState] =
+    useState<AddressSearchState>("idle");
+  const [addressSessionToken, setAddressSessionToken] = useState(() =>
+    createAddressSessionToken()
+  );
+
+  const mailingAddress = useMemo(
+    () => form.formattedAddress || formatMailingAddress(form),
+    [form]
+  );
+
+  useEffect(() => {
+    if (form.formattedAddress && form.formattedAddress !== addressQuery) {
+      setAddressQuery(form.formattedAddress);
+    }
+  }, [addressQuery, form.formattedAddress]);
+
+  useEffect(() => {
+    const query = addressQuery.trim();
+    if (query.length < 3) {
+      setSuggestions([]);
+      return;
+    }
+    if (
+      form.addressValidationStatus === "validated" &&
+      query === form.formattedAddress.trim()
+    ) {
+      setSuggestions([]);
+      return;
+    }
+
+    const timer = window.setTimeout(async () => {
+      setAddressSearchState("searching");
+      try {
+        const response = await fetch("/api/apply/address/autocomplete", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            input: query,
+            sessionToken: addressSessionToken,
+          }),
+        });
+        const result = (await response.json()) as {
+          configured?: boolean;
+          suggestions?: GoogleAddressSuggestion[];
+        };
+
+        if (result.configured === false) {
+          setForm((current) => ({
+            ...current,
+            addressValidationStatus: "not-configured",
+            addressValidationMessage:
+              "Google Maps address validation is not configured.",
+          }));
+          setSuggestions([]);
+          return;
+        }
+
+        setSuggestions(result.suggestions ?? []);
+      } catch {
+        setSuggestions([]);
+      } finally {
+        setAddressSearchState("idle");
+      }
+    }, 300);
+
+    return () => window.clearTimeout(timer);
+  }, [
+    addressQuery,
+    addressSessionToken,
+    form.addressValidationStatus,
+    form.formattedAddress,
+  ]);
 
   const mailtoHref = useMemo(() => {
     const lines = [
       "I would like more information about Church Hill classes.",
       "",
       `Name: ${form.name}`,
-      `Address: ${form.address}`,
+      `Address: ${mailingAddress}`,
       `Phone: ${form.phone}`,
       `Email: ${form.email}`,
       `Text permission: ${form.allowTexts ? "Yes" : "No"}`,
@@ -51,7 +154,105 @@ export function ChurchHillVacationNotice() {
     return `mailto:masterclay@kormausa.com?subject=${encodeURIComponent(
       `Church Hill Classes Information Request - ${form.name || "New Inquiry"}`
     )}&body=${encodeURIComponent(lines.join("\n"))}`;
-  }, [form]);
+  }, [form, mailingAddress]);
+
+  function updateAddressField(
+    field: "addressLine1" | "addressLine2" | "city" | "state" | "postalCode",
+    value: string
+  ) {
+    setForm((current) => ({
+      ...current,
+      [field]: value,
+      formattedAddress: "",
+      googlePlaceId: "",
+      googleMapsUri: "",
+      addressValidationStatus: "unverified",
+      addressValidationMessage: "",
+      addressValidatedAt: "",
+    }));
+  }
+
+  function applyAddressValidationResult(
+    result: GoogleAddressValidationResult & { configured?: boolean }
+  ) {
+    const normalized = result.normalizedAddress;
+    const nextStatus =
+      result.configured === false ? "not-configured" : result.status;
+    const nextMessage =
+      result.message ||
+      (nextStatus === "validated"
+        ? "Address validated with Google Maps."
+        : "Google Maps could not fully validate this mailing address.");
+
+    setForm((current) => ({
+      ...current,
+      addressLine1: normalized?.addressLine1 ?? current.addressLine1,
+      addressLine2: normalized?.addressLine2 ?? current.addressLine2,
+      city: normalized?.city ?? current.city,
+      state: normalized?.state ?? current.state,
+      postalCode: normalized?.postalCode ?? current.postalCode,
+      formattedAddress: normalized?.formattedAddress ?? current.formattedAddress,
+      googlePlaceId: normalized?.googlePlaceId ?? current.googlePlaceId,
+      googleMapsUri: normalized?.googleMapsUri ?? current.googleMapsUri,
+      addressValidationStatus: nextStatus,
+      addressValidationMessage: nextMessage,
+      addressValidatedAt:
+        nextStatus === "validated" ? new Date().toISOString() : "",
+    }));
+  }
+
+  async function validateAddress(options: { placeId?: string } = {}) {
+    setAddressSearchState("validating");
+    setForm((current) => ({
+      ...current,
+      addressValidationStatus: "validating",
+      addressValidationMessage: "Validating mailing address with Google Maps.",
+    }));
+
+    try {
+      const response = await fetch("/api/apply/address/validate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(
+          options.placeId
+            ? {
+                placeId: options.placeId,
+                sessionToken: addressSessionToken,
+              }
+            : {
+                address: {
+                  addressLine1: form.addressLine1,
+                  addressLine2: form.addressLine2,
+                  city: form.city,
+                  state: form.state,
+                  postalCode: form.postalCode,
+                  googlePlaceId: form.googlePlaceId,
+                },
+              }
+        ),
+      });
+      const result = (await response.json()) as GoogleAddressValidationResult & {
+        configured?: boolean;
+      };
+
+      applyAddressValidationResult(result);
+      setAddressSessionToken(createAddressSessionToken());
+    } catch {
+      setForm((current) => ({
+        ...current,
+        addressValidationStatus: "needs-review",
+        addressValidationMessage: "Address validation failed.",
+      }));
+    } finally {
+      setAddressSearchState("idle");
+    }
+  }
+
+  async function selectAddressSuggestion(suggestion: GoogleAddressSuggestion) {
+    setAddressQuery(suggestion.label);
+    setSuggestions([]);
+    await validateAddress({ placeId: suggestion.placeId });
+  }
 
   async function submit(duplicateConfirmed = false) {
     setLoading(true);
@@ -62,7 +263,25 @@ export function ChurchHillVacationNotice() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          ...form,
+          name: form.name,
+          phone: form.phone,
+          email: form.email,
+          allowTexts: form.allowTexts,
+          allowEmails: form.allowEmails,
+          previousExperience: form.previousExperience,
+          address: {
+            addressLine1: form.addressLine1,
+            addressLine2: form.addressLine2,
+            city: form.city,
+            state: form.state,
+            postalCode: form.postalCode,
+            formattedAddress: form.formattedAddress,
+            googlePlaceId: form.googlePlaceId,
+            googleMapsUri: form.googleMapsUri,
+            addressValidationStatus: form.addressValidationStatus,
+            addressValidationMessage: form.addressValidationMessage,
+            addressValidatedAt: form.addressValidatedAt,
+          },
           duplicateConfirmed,
         }),
       });
@@ -167,9 +386,9 @@ export function ChurchHillVacationNotice() {
                     We saved your information.
                   </h3>
                   <p className="mt-3 text-sm leading-relaxed text-white/60">
-                    Your HubSpot record has been checked for duplicates and your
-                    information was recorded. Your email draft to Master Clay
-                    should open automatically.
+                    Your HubSpot record has been checked for duplicates, your
+                    address was validated with Google Maps, and your email draft
+                    to Master Clay should open automatically.
                   </p>
                   <a
                     href={mailtoHref}
@@ -196,7 +415,8 @@ export function ChurchHillVacationNotice() {
                     </h3>
                     <p className="mt-3 text-sm leading-relaxed text-white/60">
                       Fill this out and we will save your information, check for
-                      duplicates in HubSpot, and draft an email to Master Clay.
+                      duplicates in HubSpot, validate the address with Google
+                      Maps, and draft an email to Master Clay.
                     </p>
                   </div>
 
@@ -245,21 +465,140 @@ export function ChurchHillVacationNotice() {
                         placeholder="(555) 555-5555"
                       />
                     </Field>
-                    <div className="md:col-span-2">
-                      <Field label="Address">
-                        <textarea
-                          required
-                          value={form.address}
-                          onChange={(event) =>
-                            setForm((current) => ({
-                              ...current,
-                              address: event.target.value,
-                            }))
-                          }
-                          className={`${inputClass} min-h-24 resize-y`}
-                          placeholder="Mailing address"
-                        />
+                    <div className="relative md:col-span-2">
+                      <Field label="Find Mailing Address">
+                        <div className="relative">
+                          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-white/35" />
+                          <input
+                            value={addressQuery}
+                            onChange={(event) =>
+                              setAddressQuery(event.target.value)
+                            }
+                            className={cn(inputClass, "pl-10")}
+                            placeholder="Start typing an address to select it from Google Maps"
+                            autoComplete="street-address"
+                          />
+                        </div>
                       </Field>
+                      {suggestions.length > 0 && (
+                        <div className="absolute left-0 right-0 top-full z-20 mt-2 overflow-hidden rounded-lg border border-korma-gold/25 bg-korma-navy-deeper shadow-2xl">
+                          {suggestions.map((suggestion) => (
+                            <button
+                              key={suggestion.placeId}
+                              type="button"
+                              onClick={() => void selectAddressSuggestion(suggestion)}
+                              className="block w-full border-b border-white/10 px-4 py-3 text-left transition-colors last:border-b-0 hover:bg-korma-gold/10"
+                            >
+                              <span className="block text-sm font-bold text-white">
+                                {suggestion.mainText}
+                              </span>
+                              <span className="mt-1 block text-xs text-white/45">
+                                {suggestion.secondaryText}
+                              </span>
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                    <Field label="Address Line 1">
+                      <input
+                        required
+                        value={form.addressLine1}
+                        onChange={(event) =>
+                          updateAddressField("addressLine1", event.target.value)
+                        }
+                        className={inputClass}
+                        placeholder="Street address"
+                      />
+                    </Field>
+                    <Field label="Address Line 2">
+                      <input
+                        value={form.addressLine2}
+                        onChange={(event) =>
+                          updateAddressField("addressLine2", event.target.value)
+                        }
+                        className={inputClass}
+                        placeholder="Apartment, suite, unit"
+                      />
+                    </Field>
+                    <Field label="City">
+                      <input
+                        required
+                        value={form.city}
+                        onChange={(event) =>
+                          updateAddressField("city", event.target.value)
+                        }
+                        className={inputClass}
+                        placeholder="City"
+                      />
+                    </Field>
+                    <Field label="State">
+                      <input
+                        required
+                        value={form.state}
+                        onChange={(event) =>
+                          updateAddressField(
+                            "state",
+                            event.target.value.toUpperCase()
+                          )
+                        }
+                        className={inputClass}
+                        placeholder="VA"
+                        maxLength={2}
+                      />
+                    </Field>
+                    <Field label="Postal Code">
+                      <input
+                        required
+                        value={form.postalCode}
+                        onChange={(event) =>
+                          updateAddressField("postalCode", event.target.value)
+                        }
+                        className={inputClass}
+                        placeholder="24251"
+                      />
+                    </Field>
+                    <div className="md:col-span-2">
+                      <div
+                        className={cn(
+                          "rounded-lg border px-4 py-3 text-sm",
+                          form.addressValidationStatus === "validated"
+                            ? "border-korma-gold/30 bg-korma-gold/10 text-korma-gold"
+                            : "border-white/10 bg-white/[0.03] text-white/45"
+                        )}
+                      >
+                        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                          <div className="flex items-center gap-2">
+                            <MapPin className="h-4 w-4" />
+                            <span>
+                              {form.addressValidationStatus === "validated"
+                                ? "Google Maps mailing address validated."
+                                : form.addressValidationMessage ||
+                                  "Select an address from Google Maps or validate the typed address."}
+                            </span>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => void validateAddress()}
+                            disabled={addressSearchState === "validating"}
+                            className="inline-flex w-fit items-center justify-center rounded bg-korma-gold px-3 py-2 text-xs font-bold uppercase tracking-wider text-korma-dark transition-colors hover:bg-korma-gold-light disabled:cursor-not-allowed disabled:opacity-55"
+                          >
+                            {addressSearchState === "validating"
+                              ? "Validating"
+                              : "Validate Address"}
+                          </button>
+                        </div>
+                        {mailingAddress && (
+                          <div className="mt-2 text-xs text-white/50">
+                            Standardized: {mailingAddress}
+                          </div>
+                        )}
+                      </div>
+                      {addressSearchState === "searching" && (
+                        <div className="mt-2 text-xs text-white/35">
+                          Searching Google Maps addresses.
+                        </div>
+                      )}
                     </div>
                     <div className="md:col-span-2">
                       <Field label="Previous Martial Arts Experience">
@@ -310,7 +649,10 @@ export function ChurchHillVacationNotice() {
                     <button
                       type="submit"
                       disabled={
-                        loading || !form.allowTexts || !form.allowEmails
+                        loading ||
+                        !form.allowTexts ||
+                        !form.allowEmails ||
+                        form.addressValidationStatus !== "validated"
                       }
                       className="inline-flex items-center justify-center gap-2 rounded bg-korma-gold px-4 py-3 text-sm font-bold uppercase tracking-wider text-korma-dark transition-colors hover:bg-korma-gold-light disabled:cursor-not-allowed disabled:opacity-60"
                     >
@@ -401,3 +743,24 @@ function PermissionCard({
 
 const inputClass =
   "w-full rounded-lg border border-white/10 bg-white/[0.06] px-4 py-3 text-sm text-white placeholder-white/25 transition-colors focus:outline-none focus:border-korma-gold/50";
+
+function formatMailingAddress(form: ChurchHillFormState) {
+  return [
+    form.addressLine1,
+    form.addressLine2,
+    form.city,
+    form.state,
+    form.postalCode,
+  ]
+    .filter(Boolean)
+    .join(", ");
+}
+
+function createAddressSessionToken() {
+  return (
+    globalThis.crypto?.randomUUID?.() ??
+    `address-${Date.now().toString(36)}-${Math.random()
+      .toString(36)
+      .slice(2, 10)}`
+  );
+}
