@@ -133,7 +133,7 @@ export function isRegistrationComplete(registration: ApplicationRegistration) {
       registration.city.trim() &&
       registration.state.trim() &&
       registration.postalCode.trim() &&
-      registration.addressValidationStatus === "validated" &&
+      
       registration.phone.trim() &&
       isValidSubmitterEmail(registration.email) &&
       registration.allowTexts &&
