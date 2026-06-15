@@ -12,10 +12,6 @@ import type {
   MartialArtId,
 } from "@/lib/application/types";
 import {
-  hasGoogleMapsKey,
-  validateGoogleAddress,
-} from "@/lib/application/google-address";
-import {
   createHubSpotHeaders,
   ensureHubSpotContact,
   type HubSpotDuplicateCandidate,
@@ -117,14 +113,6 @@ export async function POST(req: NextRequest) {
       return NextResponse.json(
         { error: "Completed registration and permissions are required" },
         { status: 400 }
-      );
-    }
-
-    const addressValidationError = await getAddressValidationError(submission);
-    if (addressValidationError) {
-      return NextResponse.json(
-        { error: addressValidationError.error },
-        { status: addressValidationError.status }
       );
     }
 
@@ -303,50 +291,6 @@ function getMasterOverrideError(submission: ApplySubmission) {
 function requiresMasterKey(eligibility: TestingEligibilityStatus) {
   return eligibility.manualOverride || eligibility.entryAboveFirst;
 }
-
-async function getAddressValidationError(submission: ApplySubmission) {
-  if (!hasGoogleMapsKey()) {
-    return {
-      status: 503,
-      error: "Google Maps is not configured for address validation",
-    } as const;
-  }
-
-  try {
-    const result = await validateGoogleAddress(submission.registration);
-    if (result.status !== "validated" || !result.normalizedAddress) {
-      return {
-        status: 400,
-        error: "A Google-validated mailing address is required",
-      } as const;
-    }
-
-    submission.registration = {
-      ...submission.registration,
-      addressLine1: result.normalizedAddress.addressLine1,
-      addressLine2: result.normalizedAddress.addressLine2,
-      city: result.normalizedAddress.city,
-      state: result.normalizedAddress.state,
-      postalCode: result.normalizedAddress.postalCode,
-      formattedAddress: result.normalizedAddress.formattedAddress,
-      googlePlaceId: result.normalizedAddress.googlePlaceId,
-      googleMapsUri:
-        result.normalizedAddress.googleMapsUri ??
-        submission.registration.googleMapsUri,
-      addressValidationStatus: "validated",
-      addressValidationMessage: result.message,
-      addressValidatedAt: new Date().toISOString(),
-    };
-    return null;
-  } catch (error) {
-    console.error("[apply] address validation failed:", error);
-    return {
-      status: 400,
-      error: "A Google-validated mailing address is required",
-    } as const;
-  }
-}
-
 async function createOrFindContact(
   submission: ApplySubmission,
   _headers: Record<string, string>
@@ -944,7 +888,6 @@ function isRegistrationComplete(registration: RegistrationStatus) {
       registration.city.trim() &&
       registration.state.trim() &&
       registration.postalCode.trim() &&
-      registration.addressValidationStatus === "validated" &&
       registration.phone.trim() &&
       isValidEmail(registration.email) &&
       registration.allowTexts &&
