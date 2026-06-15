@@ -86,7 +86,7 @@ export async function POST(req: NextRequest) {
       email,
       phone: phone ?? "",
       duplicateConfirmed:
-        duplicateConfirmed === true || duplicateConfirmed === "true",
+        duplicateConfirmed === true
       properties: contactProps,
     });
 
