@@ -12,9 +12,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import Stripe from 'stripe';
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-  apiVersion: '2024-06-20',
-});
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
 
 // Pricing: WHMAF list × 1.30 (amounts in cents for Stripe)
 const DAN_PRICES_CENTS = [0, 9100, 11700, 15600, 19500, 39000, 45500, 58500, 65000, 78000];
