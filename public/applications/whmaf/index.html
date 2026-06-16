@@ -141,6 +141,15 @@ canvas.sig-canvas{background:#fff;border-radius:8px;display:block;width:100%;tou
 .submit-card p{font-size:13px;color:var(--text2);margin-bottom:16px}
 .ref-badge{display:inline-block;background:var(--bg3);border:.5px solid var(--border2);border-radius:8px;padding:7px 18px;font-size:14px;font-weight:600;letter-spacing:.04em;color:var(--text);margin-bottom:16px;font-family:monospace}
 
+/* Google Places autocomplete dark theme */
+.pac-container{background:#1a1b22;border:.5px solid #383944;border-radius:8px;box-shadow:0 8px 24px rgba(0,0,0,.6);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;margin-top:4px;padding:4px 0}
+.pac-item{background:#1a1b22;color:#f0f0f0;border-top:.5px solid #2a2b35;padding:8px 12px;cursor:pointer;font-size:12px;line-height:1.4}
+.pac-item:hover,.pac-item-selected{background:#22232c}
+.pac-icon,.hdpi .pac-icon{display:none}
+.pac-item-query{color:#E8C547;font-size:13px;margin-right:4px}
+.pac-matched{font-weight:600;color:#C9A22A}
+.pac-logo::after{display:none!important}
+
 /* Utilities */
 .hide{display:none!important}
 .sep{height:.5px;background:var(--border);margin:14px 0}
@@ -216,25 +225,43 @@ canvas.sig-canvas{background:#fff;border-radius:8px;display:block;width:100%;tou
       </div>
     </div>
     <div class="field">
-      <label>Address *</label>
-      <input type="text" id="address" placeholder="Street address, city, state">
+      <label>Street Address *</label>
+      <input type="text" id="address" placeholder="Start typing your address…" autocomplete="off" oninput="onAddressInput(this)">
+      <div id="addrHint" class="hint" style="color:var(--text3);font-size:11px;margin-top:3px">Start typing — select from the dropdown to auto-fill city, state, zip, and country.</div>
+      <div id="manualEntryLink" class="hide" style="margin-top:5px;font-size:11px;color:var(--text3)">
+        Not finding your address?
+        <a href="javascript:void(0)" onclick="enableManualEntry()" style="color:var(--red-light);text-decoration:none;font-weight:500">Enter manually →</a>
+      </div>
+      <div id="manualEntryBanner" class="info hide" style="margin-top:8px">
+        <span>✏️ Manual entry mode — fill in the fields below directly. All fields marked * are still required.</span>
+      </div>
       <div class="err">Required</div>
     </div>
-    <div class="row2">
+    <div class="row3">
+      <div class="field">
+        <label>City *</label>
+        <input type="text" id="city" placeholder="City">
+        <div class="err">Required</div>
+      </div>
+      <div class="field">
+        <label>State / Province *</label>
+        <input type="text" id="state" placeholder="State">
+        <div class="err">Required</div>
+      </div>
       <div class="field">
         <label>Zip / Postal Code *</label>
         <input type="text" id="zip" placeholder="12345">
         <div class="err">Required</div>
       </div>
-      <div class="field">
-        <label>Sex *</label>
-        <select id="sex">
-          <option value="">— Select —</option>
-          <option value="M">Male (M)</option>
-          <option value="F">Female (F)</option>
-        </select>
-        <div class="err">Required</div>
-      </div>
+    </div>
+    <div class="field">
+      <label>Sex *</label>
+      <select id="sex">
+        <option value="">— Select —</option>
+        <option value="M">Male (M)</option>
+        <option value="F">Female (F)</option>
+      </select>
+      <div class="err">Required</div>
     </div>
     <div class="row3">
       <div class="field">
@@ -272,7 +299,22 @@ canvas.sig-canvas{background:#fff;border-radius:8px;display:block;width:100%;tou
         <label style="display:flex;align-items:center;gap:6px;font-size:13px;color:var(--text);font-weight:400;cursor:pointer">
           <input type="checkbox" id="disc-taijiquan" value="Taijiquan"> Taijiquan</label>
       </div>
-      <div class="hint">Stored in HubSpot as <code>whmaf_disciplines</code> — drives WHMAF document pre-fill</div>
+    </div>
+    <div class="field" id="photoField2" style="margin-top:4px">
+      <label>Passport Photo <span id="photoReqStar" style="color:var(--red-light)">*</span></label>
+      <div id="photoOnFileNote" class="info hide" style="margin-bottom:10px">
+        <span>✅ A profile photo is on file in your HubSpot record. Upload a new one to replace it, or continue.</span>
+      </div>
+      <div class="photo-box" id="photoBox" onclick="triggerPhotoInput()">
+        <input type="file" id="photoFile" accept="image/*" onchange="previewPhoto(event)">
+        <div id="photoPlaceholder">
+          <div style="font-size:32px;margin-bottom:6px">📷</div>
+          <div style="font-size:13px;color:var(--text2)">Click to upload passport photo</div>
+          <div class="ph-label">JPG or PNG · Full face · Plain background · Min 300×300 px</div>
+        </div>
+        <img id="photoPreview" class="preview hide" alt="Passport photo preview">
+        <div class="ph-label" id="photoName"></div>
+      </div>
     </div>
   </div>
   <div class="btn-row">
@@ -485,31 +527,8 @@ canvas.sig-canvas{background:#fff;border-radius:8px;display:block;width:100%;tou
   </div>
 </div>
 
-<!-- ========== STEP 5: PASSPORT PHOTO ========== -->
-<div id="step5" class="step-content hide">
-  <div class="panel">
-    <h2>Step 5 — Passport Headshot</h2>
-    <div class="sub">A passport-style photo is required for all applicants. If a photo is already on file in HubSpot, you may skip this step.</div>
-    <div id="photoExistsNote" class="info hide">
-      <span>✅ A profile photo was found in your HubSpot record. You may upload a new one to replace it, or skip to continue.</span>
-    </div>
-    <div class="photo-box" id="photoBox" onclick="triggerPhotoInput()">
-      <input type="file" id="photoFile" accept="image/*" onchange="previewPhoto(event)">
-      <div id="photoPlaceholder">
-        <div style="font-size:36px;margin-bottom:8px">📷</div>
-        <div style="font-size:13px;color:var(--text2)">Click to upload passport photo</div>
-        <div class="ph-label">JPG or PNG · Full face · Plain background · Min 300×300 px</div>
-      </div>
-      <img id="photoPreview" class="preview hide" alt="Passport photo preview">
-      <div class="ph-label" id="photoName"></div>
-    </div>
-  </div>
-  <div class="btn-row">
-    <button class="btn btn-ghost" onclick="goTo(4)">← Back</button>
-    <button class="btn btn-ghost" id="skipPhotoBtn" onclick="goTo(6)">Skip (photo on file)</button>
-    <button class="btn btn-primary" id="photoNextBtn" onclick="validateStep5()">Continue →</button>
-  </div>
-</div>
+<!-- STEP 5 removed — passport photo is now collected in Step 2 (Personal Info) -->
+<div id="step5" class="step-content hide"></div>
 
 <!-- ========== STEP 6: SUPPORTING DOCUMENTS ========== -->
 <div id="step6" class="step-content hide">
@@ -683,7 +702,7 @@ canvas.sig-canvas{background:#fff;border-radius:8px;display:block;width:100%;tou
 // ─── STATE ───────────────────────────────────────────────────────────────────
 const st = {
   step: 1,
-  email: '', hsFound: false,
+  email: '', hsFound: false, hsHasPhoto: false,
   certs: { d: false, i: false, s: false },
   photoB64: null, photoName: null,
   docs: { dan: [], instr: [], charter: [] },
@@ -709,10 +728,13 @@ function calcTotal() {
 
 // ─── NAVIGATION ──────────────────────────────────────────────────────────────
 function goTo(n) {
+  // Step 5 (standalone photo) is now absorbed into Step 2 — auto-skip it
+  if (n === 5) { goTo(st.step < 5 ? 6 : 4); return; }
   document.querySelectorAll('.step-content').forEach(el => el.classList.add('hide'));
   document.getElementById('step' + n).classList.remove('hide');
   if (n === 9) buildReview();
   if (n === 4) showCertSections();
+  if (n === 2) setupPhotoField();
 
   const pips = document.querySelectorAll('.step-pip');
   pips.forEach((pip, i) => {
@@ -739,15 +761,17 @@ function hsLookup() {
 
   // Simulate HubSpot lookup (replace with real API call)
   setTimeout(() => {
-    const found = false; // Set true when HubSpot MCP returns a match
+    const found = false;       // Set true when HubSpot MCP returns a match
+    const hasPhoto = false;    // Set true when HubSpot record includes a profile photo
     const status = document.getElementById('hsStatus');
     if (found) {
       st.hsFound = true;
+      st.hsHasPhoto = hasPhoto;
       status.className = 'hs-status found';
       status.innerHTML = '✅ <strong>Record found.</strong> Pre-filled data loaded from HubSpot. Please verify and update as needed.';
-      document.getElementById('photoExistsNote').classList.remove('hide');
     } else {
       st.hsFound = false;
+      st.hsHasPhoto = false;
       status.className = 'hs-status new';
       status.innerHTML = '🔔 <strong>No existing record.</strong> A new HubSpot contact will be created upon submission.';
     }
@@ -758,9 +782,86 @@ function hsLookup() {
   }, 800);
 }
 
+// ─── GOOGLE PLACES AUTOCOMPLETE ──────────────────────────────────────────────
+let placesAC = null;
+let addressManualMode = false;
+
+function initAutocomplete() {
+  const input = document.getElementById('address');
+  if (!input || !window.google?.maps?.places) return;
+  placesAC = new google.maps.places.Autocomplete(input, {
+    types: ['address'],
+    fields: ['address_components'],
+  });
+  placesAC.addListener('place_changed', () => {
+    fillAddressFields(placesAC.getPlace());
+    // Hide the manual-entry prompt once a valid selection is made
+    document.getElementById('manualEntryLink').classList.add('hide');
+    document.getElementById('manualEntryBanner').classList.add('hide');
+  });
+}
+
+function onAddressInput(el) {
+  // Show "Enter manually" prompt after user has typed 4+ chars without selecting
+  if (!addressManualMode && el.value.length >= 4) {
+    document.getElementById('manualEntryLink').classList.remove('hide');
+  } else if (el.value.length < 4) {
+    document.getElementById('manualEntryLink').classList.add('hide');
+  }
+}
+
+function enableManualEntry() {
+  addressManualMode = true;
+  // Swap hints
+  document.getElementById('manualEntryLink').classList.add('hide');
+  document.getElementById('addrHint').classList.add('hide');
+  document.getElementById('manualEntryBanner').classList.remove('hide');
+  // Update placeholder to be more specific for manual input
+  document.getElementById('address').placeholder = 'Street number and name (e.g. 123 Main St)';
+  // Detach Places autocomplete so it no longer intercepts keystrokes
+  if (placesAC && window.google?.maps?.event) {
+    google.maps.event.clearInstanceListeners(placesAC);
+  }
+  // Hide any open dropdown
+  document.querySelectorAll('.pac-container').forEach(el => { el.style.display = 'none'; });
+}
+
+function fillAddressFields(place) {
+  const comps = place.address_components || [];
+  const get  = (...types) => { const c = comps.find(c => types.every(t => c.types.includes(t))); return c ? c.long_name  : ''; };
+  const getS = (...types) => { const c = comps.find(c => types.every(t => c.types.includes(t))); return c ? c.short_name : ''; };
+
+  const streetNum = get('street_number');
+  const route     = get('route');
+  const city      = get('locality') || get('sublocality_level_1') || get('postal_town');
+  const state     = getS('administrative_area_level_1');
+  const zip       = get('postal_code');
+  const country   = get('country');
+
+  const set = (id, val) => { if (!val) return; const el = document.getElementById(id); if (el) { el.value = val; el.closest('.field')?.classList.remove('invalid'); } };
+  set('address', [streetNum, route].filter(Boolean).join(' '));
+  set('city',    city);
+  set('state',   state);
+  set('zip',     zip);
+  set('nation',  country);
+}
+
+// ─── STEP 2: PHOTO SETUP ─────────────────────────────────────────────────────
+function setupPhotoField() {
+  const star = document.getElementById('photoReqStar');
+  const note = document.getElementById('photoOnFileNote');
+  if (st.hsHasPhoto) {
+    note.classList.remove('hide');
+    star.style.display = 'none'; // optional when photo on file
+  } else {
+    note.classList.add('hide');
+    star.style.display = '';
+  }
+}
+
 // ─── STEP 2 VALIDATION ───────────────────────────────────────────────────────
 function validateStep2() {
-  const req = ['fullName', 'nation', 'address', 'zip', 'sex', 'dobYear', 'dobMonth', 'dobDay'];
+  const req = ['fullName', 'nation', 'address', 'city', 'state', 'zip', 'sex', 'dobYear', 'dobMonth', 'dobDay'];
   let ok = true;
   req.forEach(id => {
     const el = document.getElementById(id);
@@ -768,7 +869,15 @@ function validateStep2() {
     if (!el.value.trim()) { f.classList.add('invalid'); ok = false; }
     else f.classList.remove('invalid');
   });
-  if (ok) goTo(3);
+  if (!ok) return;
+  // Photo required unless HubSpot already has one
+  if (!st.hsHasPhoto && !st.photoB64) {
+    document.getElementById('photoBox').style.borderColor = 'var(--red-light)';
+    alert('Please upload a passport photo to continue.');
+    return;
+  }
+  document.getElementById('photoBox').style.borderColor = '';
+  goTo(3);
 }
 
 // ─── STEP 3: CERT SELECTION ──────────────────────────────────────────────────
@@ -866,12 +975,7 @@ function previewPhoto(e) {
   reader.readAsDataURL(file);
 }
 
-function validateStep5() {
-  if (!st.photoB64) {
-    if (!st.hsFound) { alert('Please upload a passport photo.'); return; }
-  }
-  goTo(6);
-}
+function validateStep5() { goTo(6); } // Photo now collected in Step 2
 
 // ─── STEP 6: DOCS ────────────────────────────────────────────────────────────
 function addDocs(e, type) {
@@ -988,7 +1092,7 @@ function buildReview() {
   set('rv-nation', g('nation'));
   set('rv-dob', `${g('dobYear')}-${String(g('dobMonth')).padStart(2,'0')}-${String(g('dobDay')).padStart(2,'0')}`);
   set('rv-sex', g('sex'));
-  set('rv-addr', `${g('address')}, ${g('zip')}`);
+  set('rv-addr', [g('address'), g('city'), g('state'), g('zip'), g('nation')].filter(Boolean).join(', '));
   const discIds = ['taekwondo','changemookwan','hapkido','kumdo','taijiquan'];
   const discSel = discIds.filter(d => document.getElementById('disc-'+d).checked).map(d => document.getElementById('disc-'+d).value);
   set('rv-disciplines', discSel.length ? discSel.join(', ') : 'None selected');
@@ -1048,20 +1152,26 @@ function genRef() {
   return 'WHMAF-' + Date.now().toString(36).toUpperCase().slice(-6);
 }
 
-function submitApp() {
+async function submitApp() {
+  const submitBtn = document.querySelector('[onclick="submitApp()"]');
+  if (submitBtn) { submitBtn.disabled = true; submitBtn.textContent = 'Submitting…'; }
+
   const ref = genRef();
   const g = id => document.getElementById(id).value;
+  const disciplines = ['taekwondo','changemookwan','hapkido','kumdo','taijiquan']
+    .filter(d => document.getElementById('disc-'+d).checked)
+    .map(d => document.getElementById('disc-'+d).value);
+
   const record = {
     ref, submitted: new Date().toISOString(),
     expires: new Date(Date.now() + 5 * 365.25 * 24 * 3600 * 1000).toISOString(),
     email: st.email, hsFound: st.hsFound,
     personal: {
-      name: g('fullName'), nation: g('nation'), address: g('address'),
-      zip: g('zip'), sex: g('sex'),
+      name: g('fullName'), nation: g('nation'),
+      address: g('address'), city: g('city'), state: g('state'), zip: g('zip'),
+      sex: g('sex'),
       dob: `${g('dobYear')}-${g('dobMonth')}-${g('dobDay')}`,
-      disciplines: ['taekwondo','changemookwan','hapkido','kumdo','taijiquan']
-        .filter(d => document.getElementById('disc-'+d).checked)
-        .map(d => document.getElementById('disc-'+d).value)
+      disciplines,
     },
     certs: { ...st.certs },
     dan: st.certs.d ? {
@@ -1083,8 +1193,44 @@ function submitApp() {
     sigApplicant: !!st.sigApplicant, sigAdmin: !!st.sigAdmin,
   };
 
-  // Persist to IndexedDB (5-year storage)
+  // Persist locally (5-year IndexedDB)
   saveToIDB(record);
+
+  // ── Push to HubSpot via server-side API route ─────────────────────────────
+  try {
+    const hsPayload = {
+      ref,
+      email:      st.email,
+      fullName:   g('fullName'),
+      nation:     g('nation'),
+      address:    g('address'),
+      city:       g('city'),
+      state:      g('state'),
+      zip:        g('zip'),
+      sex:        g('sex'),
+      dobYear:    g('dobYear'),
+      dobMonth:   g('dobMonth'),
+      dobDay:     g('dobDay'),
+      disciplines,
+      certs:      record.certs,
+      appliedRank:  st.certs.d ? g('appliedRank')  : undefined,
+      instrLevel:   st.certs.i ? g('instrLevel')   : undefined,
+      gymName:      st.certs.s ? g('gymName')       : undefined,
+    };
+    const res = await fetch('/api/whmaf/submit', {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify(hsPayload),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+    console.log(`[WHMAF] HubSpot contact ${data.action}: ${data.contactId}`);
+  } catch (err) {
+    // Non-blocking — application is saved locally, admin can manually sync
+    console.error('[WHMAF] HubSpot sync failed:', err.message);
+  }
+
+  if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = 'Submit Application'; }
   document.getElementById('refBadge').textContent = ref;
   loadSavedApps();
   goTo(10);
@@ -1141,6 +1287,26 @@ document.addEventListener('DOMContentLoaded', () => {
   initSig('sigAdmin');
   // Check for saved apps on confirmation screen (if revisiting)
 });
+</script>
+
+<!-- ══════════════════════════════════════════════════════════════════════════
+     GOOGLE PLACES AUTOCOMPLETE
+     Set GOOGLE_MAPS_KEY below, or configure NEXT_PUBLIC_GOOGLE_MAPS_KEY
+     as a Vercel environment variable and inject it server-side.
+═══════════════════════════════════════════════════════════════════════════ -->
+<script>
+(function () {
+  // ← Replace with your Google Maps API key (restrict to Maps JS API + Places)
+  var key = window.NEXT_PUBLIC_GOOGLE_MAPS_KEY || 'YOUR_GOOGLE_MAPS_API_KEY';
+  if (!key || key === 'YOUR_GOOGLE_MAPS_API_KEY') {
+    console.warn('[WHMAF] Google Maps API key not set — address autocomplete disabled.');
+    return;
+  }
+  var s = document.createElement('script');
+  s.src = 'https://maps.googleapis.com/maps/api/js?key=' + key + '&libraries=places&callback=initAutocomplete';
+  s.async = true; s.defer = true;
+  document.head.appendChild(s);
+})();
 </script>
 </body>
 </html>
