@@ -182,8 +182,8 @@ canvas.sig-canvas{background:#fff;border-radius:8px;display:block;width:100%;tou
     <div class="step-pip hide" id="pip5" data-step="5"><span class="step-lbl">Photo</span></div>
     <div class="step-pip" data-step="6"><span class="step-lbl">Docs</span></div>
     <div class="step-pip" data-step="7"><span class="step-lbl">Sign</span></div>
-    <div class="step-pip" data-step="8"><span class="step-lbl">Admin</span></div>
-    <div class="step-pip" data-step="9"><span class="step-lbl">Review</span></div>
+    <div class="step-pip" data-step="8"><span class="step-lbl">Pay</span></div>
+    <div class="step-pip" data-step="9"><span class="step-lbl">Done</span></div>
   </div>
 </div>
 
@@ -589,110 +589,41 @@ canvas.sig-canvas{background:#fff;border-radius:8px;display:block;width:100%;tou
   </div>
 </div>
 
-<!-- ========== STEP 8: ADMIN SIGNATURE ========== -->
+<!-- ========== STEP 8: CHECKOUT ========== -->
 <div id="step8" class="step-content hide">
   <div class="panel">
-    <h2>Step 8 — Administrator Signature</h2>
-    <div class="sub">KORMA USA administrator signs below to complete the verification and authorize printing.</div>
-    <div class="warn info"><span>⚠️ This step is for Frank Clay / KORMA USA administration only. The package will not print until this signature is applied.</span></div>
-    <div class="sig-wrap">
-      <canvas id="sigAdmin" class="sig-canvas" width="720" height="160"></canvas>
+    <h2>Step 8 — Payment</h2>
+    <div class="sub">Review your certification fees below. You will be redirected to a secure Stripe checkout page to complete payment.</div>
+
+    <div id="checkoutLineItems" style="margin:20px 0;border:0.5px solid var(--border);border-radius:8px;overflow:hidden"></div>
+
+    <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 16px;background:var(--bg2);border:0.5px solid var(--border);border-radius:8px;margin-bottom:16px">
+      <span style="font-size:14px;font-weight:600;color:var(--text)">Total Due</span>
+      <span id="checkoutTotal" style="font-size:18px;font-weight:700;color:var(--red-light)">$0.00</span>
     </div>
-    <div class="sig-meta">
-      <span class="sig-label" id="sigAdminLabel">Administrator signature</span>
-      <div style="display:flex;gap:8px">
-        <button class="btn btn-ghost btn-sm" onclick="clearSig('sigAdmin','sigAdminLabel','sigAdminDone')">Clear</button>
-      </div>
-    </div>
-    <div id="sigAdminDone" class="tag tag-green hide" style="margin-top:8px">✓ Administrator signature captured</div>
-    <div class="err" id="sigAdminErr" style="display:none;margin-top:8px">Administrator signature required.</div>
+
+    <div class="info"><span>🔒 Payment is processed securely by Stripe. You will be returned here after completing payment.</span></div>
+
+    <div id="checkoutErr" class="err" style="display:none;margin-top:12px">Payment failed or was cancelled. Please try again.</div>
   </div>
   <div class="btn-row">
     <button class="btn btn-ghost" onclick="goTo(7)">← Back</button>
-    <button class="btn btn-ghost btn-sm" onclick="goTo(9)" style="color:var(--text3)">Skip — sign later</button>
-    <button class="btn btn-primary" onclick="validateStep8()">Continue →</button>
+    <button class="btn btn-primary" id="payBtn" onclick="startCheckout()">Proceed to Payment →</button>
   </div>
 </div>
 
-<!-- ========== STEP 9: REVIEW & SUBMIT ========== -->
+<!-- ========== STEP 9: CONFIRMATION ========== -->
 <div id="step9" class="step-content hide">
-  <div class="panel">
-    <h2>Step 9 — Review &amp; Submit</h2>
-    <div class="sub">Review all information before submitting. Once submitted, a reference number will be generated and the application will be stored for 5 years.</div>
-
-    <div class="review-section">
-      <h3>Account</h3>
-      <div class="review-row"><span class="review-lbl">Email</span><span class="review-val" id="rv-email">—</span></div>
-      <div class="review-row"><span class="review-lbl">HubSpot Status</span><span class="review-val" id="rv-hs">—</span></div>
-    </div>
-    <div class="review-section">
-      <h3>Personal Information</h3>
-      <div class="review-row"><span class="review-lbl">Full Name</span><span class="review-val" id="rv-name">—</span></div>
-      <div class="review-row"><span class="review-lbl">Nation</span><span class="review-val" id="rv-nation">—</span></div>
-      <div class="review-row"><span class="review-lbl">Date of Birth</span><span class="review-val" id="rv-dob">—</span></div>
-      <div class="review-row"><span class="review-lbl">Sex</span><span class="review-val" id="rv-sex">—</span></div>
-      <div class="review-row"><span class="review-lbl">Address</span><span class="review-val" id="rv-addr">—</span></div>
-      <div class="review-row"><span class="review-lbl">Disciplines</span><span class="review-val" id="rv-disciplines">—</span></div>
-    </div>
-    <div class="review-section" id="rv-sec-d" style="display:none">
-      <h3>Dan Certification</h3>
-      <div class="review-row"><span class="review-lbl">Applying for Rank</span><span class="review-val" id="rv-applied">—</span></div>
-      <div class="review-row"><span class="review-lbl">Present Rank</span><span class="review-val" id="rv-present">—</span></div>
-      <div class="review-row"><span class="review-lbl">Certificate No.</span><span class="review-val" id="rv-rankno">—</span></div>
-      <div class="review-row"><span class="review-lbl">Phone</span><span class="review-val" id="rv-phone-d">—</span></div>
-      <div class="review-row"><span class="review-lbl">Dojang</span><span class="review-val" id="rv-dojang">—</span></div>
-    </div>
-    <div class="review-section" id="rv-sec-i" style="display:none">
-      <h3>Instructor Certification</h3>
-      <div class="review-row"><span class="review-lbl">Level</span><span class="review-val" id="rv-instr-level">—</span></div>
-      <div class="review-row"><span class="review-lbl">Current Dan</span><span class="review-val" id="rv-instr-dan">—</span></div>
-      <div class="review-row"><span class="review-lbl">Tel / Mobile</span><span class="review-val" id="rv-instr-tel">—</span></div>
-      <div class="review-row"><span class="review-lbl">Gym</span><span class="review-val" id="rv-gym-i">—</span></div>
-    </div>
-    <div class="review-section" id="rv-sec-s" style="display:none">
-      <h3>School Charter</h3>
-      <div class="review-row"><span class="review-lbl">School Name</span><span class="review-val" id="rv-gym-name">—</span></div>
-      <div class="review-row"><span class="review-lbl">Master / Director</span><span class="review-val" id="rv-master">—</span></div>
-      <div class="review-row"><span class="review-lbl">Gym Address</span><span class="review-val" id="rv-gym-addr">—</span></div>
-      <div class="review-row"><span class="review-lbl">Gym Tel</span><span class="review-val" id="rv-gym-tel">—</span></div>
-    </div>
-    <div class="review-section">
-      <h3>Signatures &amp; Documents</h3>
-      <div class="review-row"><span class="review-lbl">Applicant Signature</span><span class="review-val" id="rv-sig-a">—</span></div>
-      <div class="review-row"><span class="review-lbl">Admin Signature</span><span class="review-val" id="rv-sig-admin">—</span></div>
-      <div class="review-row"><span class="review-lbl">Passport Photo</span><span class="review-val" id="rv-photo">—</span></div>
-      <div class="review-row"><span class="review-lbl">Supporting Docs</span><span class="review-val" id="rv-docs">—</span></div>
-    </div>
-    <div class="review-section">
-      <h3>Fee Summary</h3>
-      <div id="rv-fee-d" class="review-row" style="display:none"><span class="review-lbl">Dan Certification</span><span class="review-val" id="rv-fee-d-amt">—</span></div>
-      <div id="rv-fee-i" class="review-row" style="display:none"><span class="review-lbl">Instructor Cert.</span><span class="review-val">$390</span></div>
-      <div id="rv-fee-s" class="review-row" style="display:none"><span class="review-lbl">School Charter</span><span class="review-val">$390</span></div>
-      <div class="review-row" style="font-weight:600"><span class="review-lbl" style="color:var(--text)">Total Due</span><span class="review-val" id="rv-total" style="color:var(--red-light)">$0</span></div>
-    </div>
-  </div>
-  <div class="btn-row">
-    <button class="btn btn-ghost" onclick="goTo(8)">← Back</button>
-    <button class="btn btn-primary" onclick="submitApp()">✓ Submit Application</button>
-  </div>
-</div>
-
-<!-- ========== STEP 10: CONFIRMATION ========== -->
-<div id="step10" class="step-content hide">
   <div class="panel submit-card">
     <div class="check">✅</div>
     <h2>Application Submitted</h2>
-    <p>Your WHMAF certification application has been received and stored securely.</p>
+    <p>Payment received. Your WHMAF certification application has been submitted and stored securely.</p>
     <div class="ref-badge" id="refBadge">WHMAF-000000</div>
-    <p style="margin-bottom:8px">A copy has been saved locally. This application is retained for <strong>5 years</strong> and can be reprinted at any time.</p>
+    <p style="margin-bottom:8px;color:var(--text2);font-size:13px">A KORMA USA administrator will countersign your application before certificates are printed. You will be contacted when ready.</p>
     <div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin-top:16px">
       <button class="btn btn-ghost" onclick="printSummary()">🖨️ Print Summary</button>
       <button class="btn btn-ghost" onclick="newApp()">+ New Application</button>
     </div>
-  </div>
-  <div id="savedApps" class="panel hide">
-    <h2 style="margin-bottom:12px">Saved Applications</h2>
-    <div id="appList"></div>
   </div>
 </div>
 
@@ -730,8 +661,8 @@ function goTo(n) {
   if (n === 5) { goTo(st.step < 5 ? 6 : 4); return; }
   document.querySelectorAll('.step-content').forEach(el => el.classList.add('hide'));
   document.getElementById('step' + n).classList.remove('hide');
-  if (n === 9) buildReview();
   if (n === 6) syncStep6Docs();
+  if (n === 8) syncStep8Checkout();
   if (n === 4) showCertSections();
   if (n === 2) setupPhotoField();
 
@@ -1077,13 +1008,82 @@ function validateStep7() {
   }
 }
 
-function validateStep8() {
-  const blank = isSigBlank('sigAdmin');
-  document.getElementById('sigAdminErr').style.display = blank ? 'block' : 'none';
-  if (!blank) {
-    st.sigAdmin = document.getElementById('sigAdmin').toDataURL();
-    document.getElementById('sigAdminDone').classList.remove('hide');
-    goTo(9);
+// ─── STEP 8: CHECKOUT ────────────────────────────────────────────────────────
+const danPrcDisplay = [0, 91, 117, 156, 195, 390, 455, 585, 650, 780];
+const danRankLbl = ['','1st Dan','2nd Dan','3rd Dan','4th Dan','5th Dan','6th Dan','7th Dan','8th Dan','9th Dan'];
+
+function syncStep8Checkout() {
+  const items = [];
+  if (st.certs.d) {
+    const r = parseInt(document.getElementById('appliedRank')?.value || '0') || 0;
+    if (r && danPrcDisplay[r]) items.push({ label: `Dan Certification — ${danRankLbl[r]}`, amt: danPrcDisplay[r] });
+  }
+  if (st.certs.i) items.push({ label: 'Instructor Certification', amt: 390 });
+  if (st.certs.s) items.push({ label: 'School Charter / Organization Registration', amt: 390 });
+
+  const total = items.reduce((s, i) => s + i.amt, 0);
+  const container = document.getElementById('checkoutLineItems');
+  container.innerHTML = items.map((it, idx) =>
+    `<div style="display:flex;justify-content:space-between;padding:12px 16px;${idx > 0 ? 'border-top:0.5px solid var(--border)' : ''}">
+       <span style="font-size:13px;color:var(--text)">${it.label}</span>
+       <span style="font-size:13px;color:var(--text2)">$${it.amt}</span>
+     </div>`
+  ).join('');
+  document.getElementById('checkoutTotal').textContent = `$${total}`;
+  document.getElementById('checkoutErr').style.display = 'none';
+}
+
+async function startCheckout() {
+  const btn = document.getElementById('payBtn');
+  btn.disabled = true;
+  btn.textContent = 'Redirecting to payment…';
+
+  const g = id => document.getElementById(id)?.value || '';
+  const ref = st.ref || genRef();
+  st.ref = ref;
+
+  // First sync to HubSpot
+  try {
+    const discSel = ['tkd-cmk','hapkido','kumdo','taijiquan']
+      .filter(id => document.getElementById('disc-' + id)?.checked)
+      .map(id => document.getElementById('disc-' + id).value);
+
+    await fetch('/api/whmaf/submit', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        ref, email: st.email, fullName: g('fullName'), nation: g('nation'),
+        address: g('address'), city: g('city'), state: g('state'), zip: g('zip'),
+        sex: g('sex'), dobYear: g('dobYear'), dobMonth: g('dobMonth'), dobDay: g('dobDay'),
+        disciplines: discSel, certs: st.certs,
+        appliedRank: g('appliedRank'), instrLevel: g('instrLevel'), gymName: g('gymName'),
+      }),
+    });
+  } catch (e) { console.warn('[WHMAF] HubSpot pre-sync failed:', e); }
+
+  // Create Stripe Checkout Session
+  try {
+    const g2 = id => document.getElementById(id)?.value || '';
+    const res = await fetch('/api/whmaf/checkout', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        ref, email: st.email, fullName: g2('fullName'),
+        certs: st.certs, appliedRank: g2('appliedRank'),
+      }),
+    });
+    const data = await res.json();
+    if (data.url) {
+      window.location.href = data.url;
+    } else {
+      throw new Error(data.error || 'No checkout URL returned');
+    }
+  } catch (err) {
+    console.error('[WHMAF checkout]', err);
+    document.getElementById('checkoutErr').style.display = 'block';
+    document.getElementById('checkoutErr').textContent = 'Unable to start payment: ' + err.message;
+    btn.disabled = false;
+    btn.textContent = 'Proceed to Payment →';
   }
 }
 
@@ -1290,8 +1290,33 @@ function newApp() { location.reload(); }
 // ─── INIT ─────────────────────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
   initSig('sigApplicant');
-  initSig('sigAdmin');
-  // Check for saved apps on confirmation screen (if revisiting)
+
+  // Handle return from Stripe checkout
+  const params = new URLSearchParams(window.location.search);
+  const paymentStatus = params.get('payment');
+  const returnRef = params.get('ref');
+
+  if (paymentStatus === 'success' && returnRef) {
+    // Clean up the URL
+    window.history.replaceState({}, '', window.location.pathname);
+    // Show confirmation
+    document.querySelectorAll('.step-content').forEach(el => el.classList.add('hide'));
+    document.getElementById('step9').classList.remove('hide');
+    document.getElementById('refBadge').textContent = returnRef;
+    // Mark all pips done
+    document.querySelectorAll('.step-pip').forEach(pip => {
+      pip.classList.remove('active');
+      pip.classList.add('done');
+    });
+  } else if (paymentStatus === 'cancelled' && returnRef) {
+    window.history.replaceState({}, '', window.location.pathname);
+    // Return to checkout step with error shown
+    goTo(8);
+    setTimeout(() => {
+      const err = document.getElementById('checkoutErr');
+      if (err) { err.style.display = 'block'; err.textContent = 'Payment was cancelled. Please try again when ready.'; }
+    }, 100);
+  }
 });
 </script>
 
