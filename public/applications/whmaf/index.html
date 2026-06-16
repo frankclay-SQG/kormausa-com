@@ -1,0 +1,1146 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>WHMAF Certification Application</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --red:#b71c1c;--red-light:#ef5350;--red-dark:#7f0000;
+  --bg:#0f0f0f;--bg2:#1a1a1a;--bg3:#242424;--bg4:#2e2e2e;
+  --border:#333;--border2:#444;
+  --text:#f0f0f0;--text2:#aaa;--text3:#666;
+  --green:#4caf50;--green-bg:#071507;--green-border:#1a4a1a;
+  --amber:#f59e0b;--amber-bg:#1a1200;--amber-border:#3d2c00;
+  --blue:#60a5fa;--blue-bg:#0d1829;
+}
+body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;min-height:100vh;padding:0}
+a{color:var(--blue)}
+
+/* Layout */
+.shell{max-width:760px;margin:0 auto;padding:20px 16px 60px}
+.hdr{display:flex;align-items:center;gap:14px;background:var(--bg2);border:.5px solid var(--border);border-radius:14px;padding:14px 16px;margin-bottom:16px}
+.hdr img{width:72px;height:72px;border-radius:50%;flex-shrink:0}
+.hdr-body h1{font-size:17px;font-weight:600;margin-bottom:2px}
+.hdr-body p{font-size:12px;color:var(--text2)}
+.hdr-badge{display:inline-flex;align-items:center;gap:5px;background:#3a0a0a;color:#ffaaaa;font-size:10px;padding:3px 10px;border-radius:100px;letter-spacing:.06em;font-weight:500;margin-bottom:6px}
+
+/* Progress */
+.progress-wrap{margin-bottom:16px}
+.progress-steps{display:flex;gap:0;counter-reset:step}
+.step-pip{flex:1;text-align:center;position:relative;cursor:pointer}
+.step-pip::before{counter-increment:step;content:counter(step);display:block;width:28px;height:28px;border-radius:50%;background:var(--bg3);border:1.5px solid var(--border);font-size:11px;line-height:26px;margin:0 auto 4px;transition:all .2s}
+.step-pip::after{content:'';position:absolute;top:13px;left:calc(50% + 14px);right:calc(-50% + 14px);height:1.5px;background:var(--border);z-index:0}
+.step-pip:last-child::after{display:none}
+.step-pip .step-lbl{font-size:9.5px;color:var(--text3);line-height:1.3;display:block}
+.step-pip.active::before{background:var(--red);border-color:var(--red);color:#fff;font-weight:700}
+.step-pip.done::before{background:var(--green);border-color:var(--green);color:#fff;content:'✓'}
+.step-pip.done::after{background:var(--green)}
+.step-pip.active .step-lbl,.step-pip.done .step-lbl{color:var(--text2)}
+
+/* Cards / panels */
+.panel{background:var(--bg2);border:.5px solid var(--border);border-radius:14px;padding:18px;margin-bottom:14px}
+.panel h2{font-size:15px;font-weight:600;margin-bottom:4px}
+.panel .sub{font-size:12px;color:var(--text2);margin-bottom:16px;line-height:1.5}
+
+/* Form elements */
+.field{margin-bottom:14px}
+.field label{display:block;font-size:12px;color:var(--text2);margin-bottom:5px;font-weight:500}
+.field input,.field select,.field textarea{width:100%;background:var(--bg3);border:.5px solid var(--border2);color:var(--text);border-radius:8px;padding:9px 11px;font-size:13px;outline:none;transition:border-color .15s}
+.field input:focus,.field select:focus,.field textarea:focus{border-color:var(--red)}
+.field textarea{resize:vertical;min-height:60px}
+.field select option{background:var(--bg3)}
+.field .hint{font-size:11px;color:var(--text3);margin-top:4px}
+.field .err{font-size:11px;color:var(--red-light);margin-top:4px;display:none}
+.field.invalid input,.field.invalid select{border-color:var(--red-light)}
+.field.invalid .err{display:block}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.row3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
+
+/* Buttons */
+.btn{display:inline-flex;align-items:center;gap:6px;border:none;border-radius:8px;padding:10px 20px;font-size:13px;font-weight:500;cursor:pointer;transition:opacity .15s}
+.btn:disabled{opacity:.35;cursor:not-allowed}
+.btn:not(:disabled):hover{opacity:.85}
+.btn-primary{background:var(--red);color:#fff}
+.btn-ghost{background:var(--bg3);color:var(--text2);border:.5px solid var(--border2)}
+.btn-sm{padding:7px 14px;font-size:12px}
+.btn-row{display:flex;gap:8px;margin-top:18px;justify-content:flex-end}
+.btn-row .btn-ghost{margin-right:auto}
+
+/* Info banners */
+.info{display:flex;align-items:flex-start;gap:8px;background:var(--blue-bg);border:.5px solid #1e3a5f;border-radius:8px;padding:10px 12px;font-size:12px;color:#93c5fd;margin-bottom:14px}
+.warn{background:var(--amber-bg);border-color:var(--amber-border);color:#fbbf24}
+.success{background:var(--green-bg);border-color:var(--green-border);color:#86efac}
+.info span{line-height:1.5}
+
+/* HubSpot lookup */
+.hs-row{display:flex;gap:8px;align-items:flex-end}
+.hs-row .field{flex:1;margin:0}
+.hs-status{border-radius:8px;padding:10px 12px;font-size:12px;margin-top:10px;display:none}
+.hs-status.found{background:var(--green-bg);border:.5px solid var(--green-border);color:#86efac}
+.hs-status.new{background:var(--amber-bg);border:.5px solid var(--amber-border);color:#fbbf24}
+
+/* Cert cards */
+.cert-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:14px}
+.cert-card{border:.5px solid var(--border);border-radius:12px;padding:13px;cursor:pointer;user-select:none;transition:border-color .12s;background:var(--bg3)}
+.cert-card:hover:not(.locked){border-color:var(--border2)}
+.cert-card.sel{border:1.5px solid var(--red)}
+.cert-card.locked{opacity:.4;cursor:not-allowed}
+.cert-icon{width:32px;height:32px;border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:16px;margin-bottom:8px}
+.ci-d{background:#1a0d2e}
+.ci-i{background:#0d1829}
+.ci-s{background:#1a160a}
+.cert-card h3{font-size:12.5px;font-weight:600;margin-bottom:3px}
+.cert-card p{font-size:11px;color:var(--text2)}
+.cert-detail{background:var(--bg3);border:.5px solid var(--border);border-radius:10px;padding:13px;margin-bottom:12px;display:none}
+.cert-detail.show{display:block}
+.rbadge{display:inline-block;font-size:10.5px;padding:3px 9px;border-radius:4px;margin-top:6px}
+.rbadge.ok{background:var(--green-bg);color:#86efac;border:.5px solid var(--green-border)}
+.rbadge.no{background:#1a0808;color:#f87171;border:.5px solid #5a1a1a}
+.rbadge.na{background:var(--bg4);color:var(--text3)}
+
+/* Photo / signature */
+.photo-box{border:1.5px dashed var(--border2);border-radius:10px;padding:18px;text-align:center;cursor:pointer;transition:border-color .15s;position:relative}
+.photo-box:hover{border-color:var(--red)}
+.photo-box.has-img{border-style:solid;border-color:var(--green)}
+.photo-box img.preview{max-height:160px;border-radius:8px;margin:0 auto;display:block}
+.photo-box .ph-label{font-size:12px;color:var(--text3);margin-top:6px}
+.photo-box input[type=file]{position:absolute;inset:0;opacity:0;cursor:pointer}
+
+/* Signature pad */
+.sig-wrap{position:relative}
+canvas.sig-canvas{background:#fff;border-radius:8px;display:block;width:100%;touch-action:none;cursor:crosshair}
+.sig-meta{display:flex;justify-content:space-between;align-items:center;margin-top:6px}
+.sig-label{font-size:11px;color:var(--text2)}
+.sig-signed{font-size:11px;color:var(--green);display:none}
+
+/* Doc uploads */
+.doc-drop{border:1.5px dashed var(--border2);border-radius:10px;padding:16px;text-align:center;cursor:pointer;position:relative;transition:border-color .15s}
+.doc-drop:hover{border-color:var(--border2)}
+.doc-drop input{position:absolute;inset:0;opacity:0;cursor:pointer}
+.doc-drop p{font-size:12px;color:var(--text2)}
+.doc-list{margin-top:10px;display:flex;flex-direction:column;gap:6px}
+.doc-item{display:flex;align-items:center;gap:8px;background:var(--bg3);border:.5px solid var(--border);border-radius:7px;padding:7px 10px;font-size:12px}
+.doc-item .doc-name{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.doc-item .doc-rm{background:none;border:none;color:var(--text3);cursor:pointer;font-size:14px;padding:0 2px}
+.doc-item .doc-rm:hover{color:var(--red-light)}
+
+/* Review */
+.review-section{margin-bottom:14px}
+.review-section h3{font-size:12.5px;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px;padding-bottom:6px;border-bottom:.5px solid var(--border)}
+.review-row{display:flex;gap:8px;padding:5px 0;font-size:13px;border-bottom:.5px solid var(--bg3)}
+.review-row:last-child{border-bottom:none}
+.review-lbl{color:var(--text2);min-width:140px;font-size:12px}
+.review-val{flex:1;word-break:break-word}
+
+/* Submission */
+.submit-card{text-align:center;padding:24px}
+.submit-card .check{font-size:48px;margin-bottom:10px}
+.submit-card h2{font-size:18px;margin-bottom:6px}
+.submit-card p{font-size:13px;color:var(--text2);margin-bottom:16px}
+.ref-badge{display:inline-block;background:var(--bg3);border:.5px solid var(--border2);border-radius:8px;padding:7px 18px;font-size:14px;font-weight:600;letter-spacing:.04em;color:var(--text);margin-bottom:16px;font-family:monospace}
+
+/* Utilities */
+.hide{display:none!important}
+.sep{height:.5px;background:var(--border);margin:14px 0}
+.tag{display:inline-flex;align-items:center;gap:4px;font-size:10.5px;padding:2px 8px;border-radius:100px;font-weight:500}
+.tag-green{background:var(--green-bg);color:#86efac;border:.5px solid var(--green-border)}
+.tag-red{background:#1a0808;color:#f87171}
+.tag-amber{background:var(--amber-bg);color:#fbbf24}
+</style>
+</head>
+<body>
+<div class="shell">
+
+<!-- HEADER -->
+<div class="hdr">
+  <div style="width:72px;height:72px;border-radius:50%;background:#b71c1c;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:12px;font-weight:500;color:#fff;letter-spacing:.06em;text-align:center;line-height:1.2;">WHMAF</div>
+  <div class="hdr-body">
+    <div class="hdr-badge">🔐 WHMAF Official Application Portal</div>
+    <h1>Certification &amp; Charter Application</h1>
+    <p>Dan Certification · Instructor Certification · School Charter · Secure digital intake</p>
+  </div>
+</div>
+
+<!-- PROGRESS BAR -->
+<div class="progress-wrap">
+  <div class="progress-steps" id="progressSteps">
+    <div class="step-pip active" data-step="1"><span class="step-lbl">Identity</span></div>
+    <div class="step-pip" data-step="2"><span class="step-lbl">Personal</span></div>
+    <div class="step-pip" data-step="3"><span class="step-lbl">Select</span></div>
+    <div class="step-pip" data-step="4"><span class="step-lbl">Details</span></div>
+    <div class="step-pip" data-step="5"><span class="step-lbl">Photo</span></div>
+    <div class="step-pip" data-step="6"><span class="step-lbl">Docs</span></div>
+    <div class="step-pip" data-step="7"><span class="step-lbl">Sign</span></div>
+    <div class="step-pip" data-step="8"><span class="step-lbl">Admin</span></div>
+    <div class="step-pip" data-step="9"><span class="step-lbl">Review</span></div>
+  </div>
+</div>
+
+<!-- ========== STEP 1: IDENTITY / HUBSPOT ========== -->
+<div id="step1" class="step-content">
+  <div class="panel">
+    <h2>Step 1 — Identity Verification</h2>
+    <div class="sub">Enter your email address. We'll check our records to see if a profile already exists.</div>
+    <div class="hs-row">
+      <div class="field">
+        <label>Email Address *</label>
+        <input type="email" id="email" placeholder="applicant@example.com" autocomplete="email">
+        <div class="err" id="emailErr">Please enter a valid email address.</div>
+      </div>
+      <button class="btn btn-primary" id="lookupBtn" onclick="hsLookup()">Look Up →</button>
+    </div>
+    <div class="hs-status" id="hsStatus"></div>
+  </div>
+  <div class="btn-row">
+    <button class="btn btn-primary" id="step1Next" disabled onclick="goTo(2)">Continue →</button>
+  </div>
+</div>
+
+<!-- ========== STEP 2: PERSONAL INFO ========== -->
+<div id="step2" class="step-content hide">
+  <div class="panel">
+    <h2>Step 2 — Personal Information</h2>
+    <div class="sub">This information appears on all WHMAF forms. Fields marked * are required.</div>
+    <div class="row2">
+      <div class="field">
+        <label>Full Name (as on passport) *</label>
+        <input type="text" id="fullName" placeholder="Given Name FAMILY NAME">
+        <div class="err">Required</div>
+      </div>
+      <div class="field">
+        <label>Nationality / Nation *</label>
+        <input type="text" id="nation" placeholder="e.g. United States">
+        <div class="err">Required</div>
+      </div>
+    </div>
+    <div class="field">
+      <label>Address *</label>
+      <input type="text" id="address" placeholder="Street address, city, state">
+      <div class="err">Required</div>
+    </div>
+    <div class="row2">
+      <div class="field">
+        <label>Zip / Postal Code *</label>
+        <input type="text" id="zip" placeholder="12345">
+        <div class="err">Required</div>
+      </div>
+      <div class="field">
+        <label>Sex *</label>
+        <select id="sex">
+          <option value="">— Select —</option>
+          <option value="M">Male (M)</option>
+          <option value="F">Female (F)</option>
+        </select>
+        <div class="err">Required</div>
+      </div>
+    </div>
+    <div class="row3">
+      <div class="field">
+        <label>Birth Year *</label>
+        <input type="number" id="dobYear" placeholder="1985" min="1900" max="2010">
+        <div class="err">Required</div>
+      </div>
+      <div class="field">
+        <label>Birth Month *</label>
+        <select id="dobMonth">
+          <option value="">Month</option>
+          <option>1</option><option>2</option><option>3</option><option>4</option>
+          <option>5</option><option>6</option><option>7</option><option>8</option>
+          <option>9</option><option>10</option><option>11</option><option>12</option>
+        </select>
+        <div class="err">Required</div>
+      </div>
+      <div class="field">
+        <label>Birth Day *</label>
+        <input type="number" id="dobDay" placeholder="15" min="1" max="31">
+        <div class="err">Required</div>
+      </div>
+    </div>
+    <div class="field">
+      <label>Disciplines (select all that apply)</label>
+      <div style="display:flex;flex-wrap:wrap;gap:10px 20px;margin-top:6px">
+        <label style="display:flex;align-items:center;gap:6px;font-size:13px;color:var(--text);font-weight:400;cursor:pointer">
+          <input type="checkbox" id="disc-taekwondo" value="Taekwondo"> Taekwondo</label>
+        <label style="display:flex;align-items:center;gap:6px;font-size:13px;color:var(--text);font-weight:400;cursor:pointer">
+          <input type="checkbox" id="disc-changemookwan" value="Changemookwan"> Changemookwan</label>
+        <label style="display:flex;align-items:center;gap:6px;font-size:13px;color:var(--text);font-weight:400;cursor:pointer">
+          <input type="checkbox" id="disc-hapkido" value="Hapkido"> Hapkido</label>
+        <label style="display:flex;align-items:center;gap:6px;font-size:13px;color:var(--text);font-weight:400;cursor:pointer">
+          <input type="checkbox" id="disc-kumdo" value="Kumdo"> Kumdo</label>
+        <label style="display:flex;align-items:center;gap:6px;font-size:13px;color:var(--text);font-weight:400;cursor:pointer">
+          <input type="checkbox" id="disc-taijiquan" value="Taijiquan"> Taijiquan</label>
+      </div>
+      <div class="hint">Stored in HubSpot as <code>whmaf_disciplines</code> — drives WHMAF document pre-fill</div>
+    </div>
+  </div>
+  <div class="btn-row">
+    <button class="btn btn-ghost" onclick="goTo(1)">← Back</button>
+    <button class="btn btn-primary" onclick="validateStep2()">Continue →</button>
+  </div>
+</div>
+
+<!-- ========== STEP 3: CERT SELECTION ========== -->
+<div id="step3" class="step-content hide">
+  <div class="panel">
+    <h2>Step 3 — Select Certifications</h2>
+    <div class="sub">Choose what you're applying for. School Charter requires instructor certification or verified status.</div>
+
+    <div class="info"><span>ℹ️ All three items may be included in a single application. Fees are calculated at checkout.</span></div>
+
+    <div class="cert-grid">
+      <div class="cert-card" id="cc-d" onclick="togCert('d')">
+        <div class="cert-icon ci-d">🥋</div>
+        <h3>Dan Certification</h3>
+        <p>1st–9th Dan, no prerequisites</p>
+        <p style="margin-top:6px;font-size:11px;color:var(--text3)">from $91</p>
+      </div>
+      <div class="cert-card" id="cc-i" onclick="togCert('i')">
+        <div class="cert-icon ci-i">🎓</div>
+        <h3>Instructor Cert.</h3>
+        <p>Requires minimum Dan rank per level</p>
+        <p style="margin-top:6px;font-size:11px;color:var(--text3)">$390</p>
+      </div>
+      <div class="cert-card locked" id="cc-s" onclick="togCert('s')">
+        <div class="cert-icon ci-s">🏫</div>
+        <h3>School Charter</h3>
+        <p>Requires instructor status</p>
+        <p style="margin-top:6px;font-size:11px;color:var(--text3)">$390</p>
+      </div>
+    </div>
+
+    <div class="field" style="margin-bottom:8px">
+      <label><input type="checkbox" id="hsVerInstructor" onchange="syncCerts()"> HubSpot-verified instructor (unlocks School Charter)</label>
+    </div>
+    <div class="err" id="certErr" style="font-size:12px;color:var(--red-light);display:none">Please select at least one certification.</div>
+  </div>
+  <div class="btn-row">
+    <button class="btn btn-ghost" onclick="goTo(2)">← Back</button>
+    <button class="btn btn-primary" onclick="validateStep3()">Continue →</button>
+  </div>
+</div>
+
+<!-- ========== STEP 4: FORM-SPECIFIC DETAILS ========== -->
+<div id="step4" class="step-content hide">
+  <div class="panel">
+    <h2>Step 4 — Certification Details</h2>
+    <div class="sub">Fill in the fields relevant to your selected certifications.</div>
+
+    <!-- Dan section -->
+    <div id="sec-d" class="hide">
+      <div class="sep"></div>
+      <div style="font-size:13px;font-weight:600;margin-bottom:12px;color:var(--text)">🥋 Dan Certification</div>
+      <div class="row2">
+        <div class="field">
+          <label>Applying for Rank (Dan) *</label>
+          <select id="appliedRank">
+            <option value="">— Select rank —</option>
+            <option value="1">1st Dan</option><option value="2">2nd Dan</option><option value="3">3rd Dan</option>
+            <option value="4">4th Dan</option><option value="5">5th Dan</option><option value="6">6th Dan</option>
+            <option value="7">7th Dan</option><option value="8">8th Dan</option><option value="9">9th Dan</option>
+          </select>
+          <div class="err">Required</div>
+        </div>
+        <div class="field">
+          <label>Present Rank (Dan)</label>
+          <select id="presentRankD">
+            <option value="">— None / N/A —</option>
+            <option value="1">1st Dan</option><option value="2">2nd Dan</option><option value="3">3rd Dan</option>
+            <option value="4">4th Dan</option><option value="5">5th Dan</option><option value="6">6th Dan</option>
+            <option value="7">7th Dan</option><option value="8">8th Dan</option>
+          </select>
+        </div>
+      </div>
+      <div class="row3">
+        <div class="field">
+          <label>Rank Certificate No.</label>
+          <input type="text" id="rankNoD" placeholder="Certificate number">
+        </div>
+        <div class="field">
+          <label>Issue Year</label>
+          <input type="number" id="issueYearD" placeholder="2018">
+        </div>
+        <div class="field">
+          <label>Issue Month / Day</label>
+          <input type="text" id="issueMD" placeholder="06 / 15">
+        </div>
+      </div>
+      <div class="row2">
+        <div class="field">
+          <label>Phone Number</label>
+          <input type="tel" id="phoneD" placeholder="+1 555-0100">
+        </div>
+        <div class="field">
+          <label>Name of Dojang (Gym)</label>
+          <input type="text" id="dojangD" placeholder="Dojang name">
+        </div>
+      </div>
+      <div class="field">
+        <label>Recommended By</label>
+        <input type="text" id="recommendedD" placeholder="Name of recommending instructor">
+      </div>
+    </div>
+
+    <!-- Instructor section -->
+    <div id="sec-i" class="hide">
+      <div class="sep"></div>
+      <div style="font-size:13px;font-weight:600;margin-bottom:12px;color:var(--text)">🎓 Instructor Certification</div>
+      <div class="row2">
+        <div class="field">
+          <label>Instructor Level Applying For *</label>
+          <select id="instrLevel" onchange="checkInstrEligibility()">
+            <option value="">— Select level —</option>
+            <option value="1">Assistant Instructor (1st Dan min)</option>
+            <option value="2">Instructor (2nd Dan min)</option>
+            <option value="3">Senior Instructor (3rd Dan min)</option>
+            <option value="4">Class 3 Master (4th Dan min)</option>
+            <option value="5">Class 2 Master (5th Dan min)</option>
+            <option value="6">Class 1 Master (6th Dan min)</option>
+            <option value="7">Class 1 Master (7th Dan min)</option>
+            <option value="8">Grand Master (8th Dan min)</option>
+            <option value="9">Grand Master (9th Dan min)</option>
+          </select>
+          <div class="err">Required</div>
+          <div id="instrEligBadge"></div>
+        </div>
+        <div class="field">
+          <label>Current Dan Rank *</label>
+          <select id="currentDanI" onchange="checkInstrEligibility()">
+            <option value="">— Select rank —</option>
+            <option value="1">1st Dan</option><option value="2">2nd Dan</option><option value="3">3rd Dan</option>
+            <option value="4">4th Dan</option><option value="5">5th Dan</option><option value="6">6th Dan</option>
+            <option value="7">7th Dan</option><option value="8">8th Dan</option><option value="9">9th Dan</option>
+          </select>
+          <div class="err">Required</div>
+        </div>
+      </div>
+      <div class="row3">
+        <div class="field">
+          <label>Dan Certificate No.</label>
+          <input type="text" id="rankNoI" placeholder="Certificate number">
+        </div>
+        <div class="field">
+          <label>Issue Year</label>
+          <input type="number" id="issueYearI" placeholder="2018">
+        </div>
+        <div class="field">
+          <label>Issue Month / Day</label>
+          <input type="text" id="issueMDI" placeholder="06 / 15">
+        </div>
+      </div>
+      <div class="row2">
+        <div class="field">
+          <label>Telephone</label>
+          <input type="tel" id="telI" placeholder="+1 555-0100">
+        </div>
+        <div class="field">
+          <label>Mobile / Cell</label>
+          <input type="tel" id="mobileI" placeholder="+1 555-0101">
+        </div>
+      </div>
+      <div class="row2">
+        <div class="field">
+          <label>Name of Gym</label>
+          <input type="text" id="gymI" placeholder="Gym name">
+        </div>
+        <div class="field">
+          <label>Recommended By</label>
+          <input type="text" id="recommendedI" placeholder="Recommending instructor">
+        </div>
+      </div>
+    </div>
+
+    <!-- Charter section -->
+    <div id="sec-s" class="hide">
+      <div class="sep"></div>
+      <div style="font-size:13px;font-weight:600;margin-bottom:12px;color:var(--text)">🏫 School Charter / Organization Registration</div>
+      <div class="row2">
+        <div class="field">
+          <label>Name of Gymnasium / School *</label>
+          <input type="text" id="gymName" placeholder="Official school name">
+          <div class="err">Required</div>
+        </div>
+        <div class="field">
+          <label>Name of Master / Director *</label>
+          <input type="text" id="masterName" placeholder="Master's full name">
+          <div class="err">Required</div>
+        </div>
+      </div>
+      <div class="field">
+        <label>Gym Address *</label>
+        <input type="text" id="gymAddress" placeholder="Full address of the gymnasium">
+        <div class="err">Required</div>
+      </div>
+      <div class="field">
+        <label>Gym Telephone *</label>
+        <input type="tel" id="gymTel" placeholder="+1 555-0200">
+        <div class="err">Required</div>
+      </div>
+    </div>
+  </div>
+  <div class="btn-row">
+    <button class="btn btn-ghost" onclick="goTo(3)">← Back</button>
+    <button class="btn btn-primary" onclick="validateStep4()">Continue →</button>
+  </div>
+</div>
+
+<!-- ========== STEP 5: PASSPORT PHOTO ========== -->
+<div id="step5" class="step-content hide">
+  <div class="panel">
+    <h2>Step 5 — Passport Headshot</h2>
+    <div class="sub">A passport-style photo is required for all applicants. If a photo is already on file in HubSpot, you may skip this step.</div>
+    <div id="photoExistsNote" class="info hide">
+      <span>✅ A profile photo was found in your HubSpot record. You may upload a new one to replace it, or skip to continue.</span>
+    </div>
+    <div class="photo-box" id="photoBox" onclick="triggerPhotoInput()">
+      <input type="file" id="photoFile" accept="image/*" onchange="previewPhoto(event)">
+      <div id="photoPlaceholder">
+        <div style="font-size:36px;margin-bottom:8px">📷</div>
+        <div style="font-size:13px;color:var(--text2)">Click to upload passport photo</div>
+        <div class="ph-label">JPG or PNG · Full face · Plain background · Min 300×300 px</div>
+      </div>
+      <img id="photoPreview" class="preview hide" alt="Passport photo preview">
+      <div class="ph-label" id="photoName"></div>
+    </div>
+  </div>
+  <div class="btn-row">
+    <button class="btn btn-ghost" onclick="goTo(4)">← Back</button>
+    <button class="btn btn-ghost" id="skipPhotoBtn" onclick="goTo(6)">Skip (photo on file)</button>
+    <button class="btn btn-primary" id="photoNextBtn" onclick="validateStep5()">Continue →</button>
+  </div>
+</div>
+
+<!-- ========== STEP 6: SUPPORTING DOCUMENTS ========== -->
+<div id="step6" class="step-content hide">
+  <div class="panel">
+    <h2>Step 6 — Supporting Documents</h2>
+    <div class="sub">Upload any existing certificates or documentation. All fields are optional — only upload what applies to your application.</div>
+
+    <div class="field">
+      <label>Existing Dan Certificates</label>
+      <div class="doc-drop" id="dropDan">
+        <input type="file" multiple accept=".pdf,.jpg,.jpeg,.png" onchange="addDocs(event,'dan')">
+        <p>📄 Click to upload Dan certificates (PDF or image)</p>
+      </div>
+      <div class="doc-list" id="listDan"></div>
+    </div>
+    <div class="field">
+      <label>Existing Instructor Certificates</label>
+      <div class="doc-drop" id="dropInstr">
+        <input type="file" multiple accept=".pdf,.jpg,.jpeg,.png" onchange="addDocs(event,'instr')">
+        <p>📄 Click to upload instructor certificates</p>
+      </div>
+      <div class="doc-list" id="listInstr"></div>
+    </div>
+    <div class="field">
+      <label>Existing School Charters</label>
+      <div class="doc-drop" id="dropCharter">
+        <input type="file" multiple accept=".pdf,.jpg,.jpeg,.png" onchange="addDocs(event,'charter')">
+        <p>📄 Click to upload school charters</p>
+      </div>
+      <div class="doc-list" id="listCharter"></div>
+    </div>
+  </div>
+  <div class="btn-row">
+    <button class="btn btn-ghost" onclick="goTo(5)">← Back</button>
+    <button class="btn btn-primary" onclick="goTo(7)">Continue →</button>
+  </div>
+</div>
+
+<!-- ========== STEP 7: APPLICANT SIGNATURE ========== -->
+<div id="step7" class="step-content hide">
+  <div class="panel">
+    <h2>Step 7 — Applicant Signature</h2>
+    <div class="sub">Sign below to certify that all information provided is accurate and that you agree to WHMAF promotion regulations.</div>
+    <div class="info"><span>By signing, you confirm this application is submitted in accordance with World Hapkido Martial Arts Federation promotion regulations.</span></div>
+    <div class="sig-wrap">
+      <canvas id="sigApplicant" class="sig-canvas" width="720" height="160"></canvas>
+    </div>
+    <div class="sig-meta">
+      <span class="sig-label" id="sigApplicantLabel">Draw your signature above</span>
+      <div style="display:flex;gap:8px">
+        <button class="btn btn-ghost btn-sm" onclick="clearSig('sigApplicant','sigApplicantLabel','sigApplicantDone')">Clear</button>
+      </div>
+    </div>
+    <div id="sigApplicantDone" class="tag tag-green hide" style="margin-top:8px">✓ Signature captured</div>
+    <div class="err" id="sigErr" style="display:none;margin-top:8px">Please sign before continuing.</div>
+  </div>
+  <div class="btn-row">
+    <button class="btn btn-ghost" onclick="goTo(6)">← Back</button>
+    <button class="btn btn-primary" onclick="validateStep7()">Continue →</button>
+  </div>
+</div>
+
+<!-- ========== STEP 8: ADMIN SIGNATURE ========== -->
+<div id="step8" class="step-content hide">
+  <div class="panel">
+    <h2>Step 8 — Administrator Signature</h2>
+    <div class="sub">KORMA USA administrator signs below to complete the verification and authorize printing.</div>
+    <div class="warn info"><span>⚠️ This step is for Frank Clay / KORMA USA administration only. The package will not print until this signature is applied.</span></div>
+    <div class="sig-wrap">
+      <canvas id="sigAdmin" class="sig-canvas" width="720" height="160"></canvas>
+    </div>
+    <div class="sig-meta">
+      <span class="sig-label" id="sigAdminLabel">Administrator signature</span>
+      <div style="display:flex;gap:8px">
+        <button class="btn btn-ghost btn-sm" onclick="clearSig('sigAdmin','sigAdminLabel','sigAdminDone')">Clear</button>
+      </div>
+    </div>
+    <div id="sigAdminDone" class="tag tag-green hide" style="margin-top:8px">✓ Administrator signature captured</div>
+    <div class="err" id="sigAdminErr" style="display:none;margin-top:8px">Administrator signature required.</div>
+  </div>
+  <div class="btn-row">
+    <button class="btn btn-ghost" onclick="goTo(7)">← Back</button>
+    <button class="btn btn-ghost btn-sm" onclick="goTo(9)" style="color:var(--text3)">Skip — sign later</button>
+    <button class="btn btn-primary" onclick="validateStep8()">Continue →</button>
+  </div>
+</div>
+
+<!-- ========== STEP 9: REVIEW & SUBMIT ========== -->
+<div id="step9" class="step-content hide">
+  <div class="panel">
+    <h2>Step 9 — Review &amp; Submit</h2>
+    <div class="sub">Review all information before submitting. Once submitted, a reference number will be generated and the application will be stored for 5 years.</div>
+
+    <div class="review-section">
+      <h3>Account</h3>
+      <div class="review-row"><span class="review-lbl">Email</span><span class="review-val" id="rv-email">—</span></div>
+      <div class="review-row"><span class="review-lbl">HubSpot Status</span><span class="review-val" id="rv-hs">—</span></div>
+    </div>
+    <div class="review-section">
+      <h3>Personal Information</h3>
+      <div class="review-row"><span class="review-lbl">Full Name</span><span class="review-val" id="rv-name">—</span></div>
+      <div class="review-row"><span class="review-lbl">Nation</span><span class="review-val" id="rv-nation">—</span></div>
+      <div class="review-row"><span class="review-lbl">Date of Birth</span><span class="review-val" id="rv-dob">—</span></div>
+      <div class="review-row"><span class="review-lbl">Sex</span><span class="review-val" id="rv-sex">—</span></div>
+      <div class="review-row"><span class="review-lbl">Address</span><span class="review-val" id="rv-addr">—</span></div>
+      <div class="review-row"><span class="review-lbl">Disciplines</span><span class="review-val" id="rv-disciplines">—</span></div>
+    </div>
+    <div class="review-section" id="rv-sec-d" style="display:none">
+      <h3>Dan Certification</h3>
+      <div class="review-row"><span class="review-lbl">Applying for Rank</span><span class="review-val" id="rv-applied">—</span></div>
+      <div class="review-row"><span class="review-lbl">Present Rank</span><span class="review-val" id="rv-present">—</span></div>
+      <div class="review-row"><span class="review-lbl">Certificate No.</span><span class="review-val" id="rv-rankno">—</span></div>
+      <div class="review-row"><span class="review-lbl">Phone</span><span class="review-val" id="rv-phone-d">—</span></div>
+      <div class="review-row"><span class="review-lbl">Dojang</span><span class="review-val" id="rv-dojang">—</span></div>
+    </div>
+    <div class="review-section" id="rv-sec-i" style="display:none">
+      <h3>Instructor Certification</h3>
+      <div class="review-row"><span class="review-lbl">Level</span><span class="review-val" id="rv-instr-level">—</span></div>
+      <div class="review-row"><span class="review-lbl">Current Dan</span><span class="review-val" id="rv-instr-dan">—</span></div>
+      <div class="review-row"><span class="review-lbl">Tel / Mobile</span><span class="review-val" id="rv-instr-tel">—</span></div>
+      <div class="review-row"><span class="review-lbl">Gym</span><span class="review-val" id="rv-gym-i">—</span></div>
+    </div>
+    <div class="review-section" id="rv-sec-s" style="display:none">
+      <h3>School Charter</h3>
+      <div class="review-row"><span class="review-lbl">School Name</span><span class="review-val" id="rv-gym-name">—</span></div>
+      <div class="review-row"><span class="review-lbl">Master / Director</span><span class="review-val" id="rv-master">—</span></div>
+      <div class="review-row"><span class="review-lbl">Gym Address</span><span class="review-val" id="rv-gym-addr">—</span></div>
+      <div class="review-row"><span class="review-lbl">Gym Tel</span><span class="review-val" id="rv-gym-tel">—</span></div>
+    </div>
+    <div class="review-section">
+      <h3>Signatures &amp; Documents</h3>
+      <div class="review-row"><span class="review-lbl">Applicant Signature</span><span class="review-val" id="rv-sig-a">—</span></div>
+      <div class="review-row"><span class="review-lbl">Admin Signature</span><span class="review-val" id="rv-sig-admin">—</span></div>
+      <div class="review-row"><span class="review-lbl">Passport Photo</span><span class="review-val" id="rv-photo">—</span></div>
+      <div class="review-row"><span class="review-lbl">Supporting Docs</span><span class="review-val" id="rv-docs">—</span></div>
+    </div>
+    <div class="review-section">
+      <h3>Fee Summary</h3>
+      <div id="rv-fee-d" class="review-row" style="display:none"><span class="review-lbl">Dan Certification</span><span class="review-val" id="rv-fee-d-amt">—</span></div>
+      <div id="rv-fee-i" class="review-row" style="display:none"><span class="review-lbl">Instructor Cert.</span><span class="review-val">$390</span></div>
+      <div id="rv-fee-s" class="review-row" style="display:none"><span class="review-lbl">School Charter</span><span class="review-val">$390</span></div>
+      <div class="review-row" style="font-weight:600"><span class="review-lbl" style="color:var(--text)">Total Due</span><span class="review-val" id="rv-total" style="color:var(--red-light)">$0</span></div>
+    </div>
+  </div>
+  <div class="btn-row">
+    <button class="btn btn-ghost" onclick="goTo(8)">← Back</button>
+    <button class="btn btn-primary" onclick="submitApp()">✓ Submit Application</button>
+  </div>
+</div>
+
+<!-- ========== STEP 10: CONFIRMATION ========== -->
+<div id="step10" class="step-content hide">
+  <div class="panel submit-card">
+    <div class="check">✅</div>
+    <h2>Application Submitted</h2>
+    <p>Your WHMAF certification application has been received and stored securely.</p>
+    <div class="ref-badge" id="refBadge">WHMAF-000000</div>
+    <p style="margin-bottom:8px">A copy has been saved locally. This application is retained for <strong>5 years</strong> and can be reprinted at any time.</p>
+    <div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin-top:16px">
+      <button class="btn btn-ghost" onclick="printSummary()">🖨️ Print Summary</button>
+      <button class="btn btn-ghost" onclick="newApp()">+ New Application</button>
+    </div>
+  </div>
+  <div id="savedApps" class="panel hide">
+    <h2 style="margin-bottom:12px">Saved Applications</h2>
+    <div id="appList"></div>
+  </div>
+</div>
+
+<script>
+// ─── STATE ───────────────────────────────────────────────────────────────────
+const st = {
+  step: 1,
+  email: '', hsFound: false,
+  certs: { d: false, i: false, s: false },
+  photoB64: null, photoName: null,
+  docs: { dan: [], instr: [], charter: [] },
+  sigApplicant: null, sigAdmin: null,
+};
+
+const iMin = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9];
+const iLbl = ['', 'Assistant Instructor', 'Instructor', 'Senior Instructor',
+              'Class 3 Master', 'Class 2 Master', 'Class 1 Master', 'Class 1 Master',
+              'Grand Master', 'Grand Master'];
+const sfx = n => n == 1 ? 'st' : n == 2 ? 'nd' : n == 3 ? 'rd' : 'th';
+
+// Pricing: WHMAF list × 1.30 (base + 30%)
+const danPrc = [0, 91, 117, 156, 195, 390, 455, 585, 650, 780];
+const instrPrc = 390, charterPrc = 390;
+function calcTotal() {
+  let t = 0;
+  if (st.certs.d) { const r = parseInt(document.getElementById('appliedRank').value) || 0; t += danPrc[r] || 0; }
+  if (st.certs.i) t += instrPrc;
+  if (st.certs.s) t += charterPrc;
+  return t;
+}
+
+// ─── NAVIGATION ──────────────────────────────────────────────────────────────
+function goTo(n) {
+  document.querySelectorAll('.step-content').forEach(el => el.classList.add('hide'));
+  document.getElementById('step' + n).classList.remove('hide');
+  if (n === 9) buildReview();
+  if (n === 4) showCertSections();
+
+  const pips = document.querySelectorAll('.step-pip');
+  pips.forEach((pip, i) => {
+    pip.classList.remove('active', 'done');
+    if (i + 1 < n) pip.classList.add('done');
+    else if (i + 1 === n) pip.classList.add('active');
+  });
+  st.step = n;
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+// ─── STEP 1: HUBSPOT LOOKUP ──────────────────────────────────────────────────
+function hsLookup() {
+  const email = document.getElementById('email').value.trim();
+  if (!email || !email.includes('@')) {
+    document.getElementById('emailErr').style.display = 'block';
+    return;
+  }
+  document.getElementById('emailErr').style.display = 'none';
+  const btn = document.getElementById('lookupBtn');
+  btn.textContent = 'Searching…';
+  btn.disabled = true;
+  st.email = email;
+
+  // Simulate HubSpot lookup (replace with real API call)
+  setTimeout(() => {
+    const found = false; // Set true when HubSpot MCP returns a match
+    const status = document.getElementById('hsStatus');
+    if (found) {
+      st.hsFound = true;
+      status.className = 'hs-status found';
+      status.innerHTML = '✅ <strong>Record found.</strong> Pre-filled data loaded from HubSpot. Please verify and update as needed.';
+      document.getElementById('photoExistsNote').classList.remove('hide');
+    } else {
+      st.hsFound = false;
+      status.className = 'hs-status new';
+      status.innerHTML = '🔔 <strong>No existing record.</strong> A new HubSpot contact will be created upon submission.';
+    }
+    status.style.display = 'block';
+    document.getElementById('step1Next').disabled = false;
+    btn.textContent = 'Look Up →';
+    btn.disabled = false;
+  }, 800);
+}
+
+// ─── STEP 2 VALIDATION ───────────────────────────────────────────────────────
+function validateStep2() {
+  const req = ['fullName', 'nation', 'address', 'zip', 'sex', 'dobYear', 'dobMonth', 'dobDay'];
+  let ok = true;
+  req.forEach(id => {
+    const el = document.getElementById(id);
+    const f = el.closest('.field');
+    if (!el.value.trim()) { f.classList.add('invalid'); ok = false; }
+    else f.classList.remove('invalid');
+  });
+  if (ok) goTo(3);
+}
+
+// ─── STEP 3: CERT SELECTION ──────────────────────────────────────────────────
+function togCert(t) {
+  if (t === 's' && !certUnlocked()) return;
+  st.certs[t] = !st.certs[t];
+  syncCerts();
+}
+
+function certUnlocked() {
+  return st.certs.i || document.getElementById('hsVerInstructor').checked;
+}
+
+function syncCerts() {
+  const ok = certUnlocked();
+  ['d', 'i', 's'].forEach(t => {
+    const card = document.getElementById('cc-' + t);
+    if (t === 's') {
+      if (!ok) { st.certs.s = false; card.className = 'cert-card locked'; }
+      else card.className = 'cert-card' + (st.certs.s ? ' sel' : '');
+    } else {
+      card.className = 'cert-card' + (st.certs[t] ? ' sel' : '');
+    }
+  });
+}
+
+function validateStep3() {
+  const any = st.certs.d || st.certs.i || st.certs.s;
+  document.getElementById('certErr').style.display = any ? 'none' : 'block';
+  if (any) goTo(4);
+}
+
+// ─── STEP 4: SHOW SECTIONS ───────────────────────────────────────────────────
+function showCertSections() {
+  ['d', 'i', 's'].forEach(t => {
+    const sec = document.getElementById('sec-' + t);
+    if (sec) sec.classList.toggle('hide', !st.certs[t]);
+  });
+}
+
+function checkInstrEligibility() {
+  const lvl = parseInt(document.getElementById('instrLevel').value) || 0;
+  const cur = parseInt(document.getElementById('currentDanI').value) || 0;
+  const badge = document.getElementById('instrEligBadge');
+  if (!lvl || !cur) { badge.innerHTML = ''; return; }
+  const min = iMin[lvl];
+  if (cur >= min) {
+    badge.innerHTML = `<span class="rbadge ok">✓ Eligible — ${min}${sfx(min)}+ Dan met</span>`;
+  } else {
+    badge.innerHTML = `<span class="rbadge no">✗ Needs ${min}${sfx(min)} Dan — you have ${cur}${sfx(cur)} Dan</span>`;
+  }
+}
+
+function validateStep4() {
+  let ok = true;
+  if (st.certs.d) {
+    const v = document.getElementById('appliedRank').value;
+    const f = document.getElementById('appliedRank').closest('.field');
+    if (!v) { f.classList.add('invalid'); ok = false; } else f.classList.remove('invalid');
+  }
+  if (st.certs.i) {
+    ['instrLevel', 'currentDanI'].forEach(id => {
+      const el = document.getElementById(id);
+      const f = el.closest('.field');
+      if (!el.value) { f.classList.add('invalid'); ok = false; } else f.classList.remove('invalid');
+    });
+  }
+  if (st.certs.s) {
+    ['gymName', 'masterName', 'gymAddress', 'gymTel'].forEach(id => {
+      const el = document.getElementById(id);
+      const f = el.closest('.field');
+      if (!el.value.trim()) { f.classList.add('invalid'); ok = false; } else f.classList.remove('invalid');
+    });
+  }
+  if (ok) goTo(5);
+}
+
+// ─── STEP 5: PHOTO ───────────────────────────────────────────────────────────
+function triggerPhotoInput() {}  // click bubbles to input
+
+function previewPhoto(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  st.photoName = file.name;
+  const reader = new FileReader();
+  reader.onload = ev => {
+    st.photoB64 = ev.target.result;
+    document.getElementById('photoPlaceholder').classList.add('hide');
+    const img = document.getElementById('photoPreview');
+    img.src = ev.target.result;
+    img.classList.remove('hide');
+    document.getElementById('photoName').textContent = file.name;
+    document.getElementById('photoBox').classList.add('has-img');
+  };
+  reader.readAsDataURL(file);
+}
+
+function validateStep5() {
+  if (!st.photoB64) {
+    if (!st.hsFound) { alert('Please upload a passport photo.'); return; }
+  }
+  goTo(6);
+}
+
+// ─── STEP 6: DOCS ────────────────────────────────────────────────────────────
+function addDocs(e, type) {
+  const files = Array.from(e.target.files);
+  files.forEach(f => {
+    if (!st.docs[type].find(x => x.name === f.name)) st.docs[type].push(f);
+  });
+  renderDocList(type);
+}
+
+function removeDoc(type, name) {
+  st.docs[type] = st.docs[type].filter(f => f.name !== name);
+  renderDocList(type);
+}
+
+function renderDocList(type) {
+  const listId = { dan: 'listDan', instr: 'listInstr', charter: 'listCharter' }[type];
+  const ul = document.getElementById(listId);
+  ul.innerHTML = st.docs[type].map(f =>
+    `<div class="doc-item">
+       <span>📄</span>
+       <span class="doc-name">${f.name}</span>
+       <span style="font-size:11px;color:var(--text3)">${(f.size/1024).toFixed(0)} KB</span>
+       <button class="doc-rm" onclick="removeDoc('${type}','${f.name}')">✕</button>
+     </div>`
+  ).join('');
+}
+
+// ─── SIGNATURE PADS ──────────────────────────────────────────────────────────
+function initSig(canvasId) {
+  const canvas = document.getElementById(canvasId);
+  const ctx = canvas.getContext('2d');
+  ctx.strokeStyle = '#1a1a1a';
+  ctx.lineWidth = 2.5;
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+  let drawing = false;
+  let lastX, lastY;
+
+  function getPos(e) {
+    const r = canvas.getBoundingClientRect();
+    const sx = canvas.width / r.width;
+    const sy = canvas.height / r.height;
+    if (e.touches) {
+      return [(e.touches[0].clientX - r.left) * sx, (e.touches[0].clientY - r.top) * sy];
+    }
+    return [(e.clientX - r.left) * sx, (e.clientY - r.top) * sy];
+  }
+
+  canvas.addEventListener('mousedown', e => { drawing = true; [lastX, lastY] = getPos(e); });
+  canvas.addEventListener('mousemove', e => {
+    if (!drawing) return;
+    const [x, y] = getPos(e);
+    ctx.beginPath(); ctx.moveTo(lastX, lastY); ctx.lineTo(x, y); ctx.stroke();
+    [lastX, lastY] = [x, y];
+  });
+  canvas.addEventListener('mouseup', () => { drawing = false; });
+  canvas.addEventListener('mouseleave', () => { drawing = false; });
+
+  canvas.addEventListener('touchstart', e => { e.preventDefault(); drawing = true; [lastX, lastY] = getPos(e); });
+  canvas.addEventListener('touchmove', e => {
+    e.preventDefault();
+    if (!drawing) return;
+    const [x, y] = getPos(e);
+    ctx.beginPath(); ctx.moveTo(lastX, lastY); ctx.lineTo(x, y); ctx.stroke();
+    [lastX, lastY] = [x, y];
+  });
+  canvas.addEventListener('touchend', () => { drawing = false; });
+}
+
+function clearSig(canvasId, labelId, doneId) {
+  const canvas = document.getElementById(canvasId);
+  const ctx = canvas.getContext('2d');
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  document.getElementById(doneId).classList.add('hide');
+  if (canvasId === 'sigApplicant') st.sigApplicant = null;
+  else st.sigAdmin = null;
+}
+
+function isSigBlank(canvasId) {
+  const canvas = document.getElementById(canvasId);
+  const data = canvas.getContext('2d').getImageData(0, 0, canvas.width, canvas.height).data;
+  return !data.some((v, i) => i % 4 === 3 && v > 0);
+}
+
+function validateStep7() {
+  const blank = isSigBlank('sigApplicant');
+  document.getElementById('sigErr').style.display = blank ? 'block' : 'none';
+  if (!blank) {
+    st.sigApplicant = document.getElementById('sigApplicant').toDataURL();
+    document.getElementById('sigApplicantDone').classList.remove('hide');
+    goTo(8);
+  }
+}
+
+function validateStep8() {
+  const blank = isSigBlank('sigAdmin');
+  document.getElementById('sigAdminErr').style.display = blank ? 'block' : 'none';
+  if (!blank) {
+    st.sigAdmin = document.getElementById('sigAdmin').toDataURL();
+    document.getElementById('sigAdminDone').classList.remove('hide');
+    goTo(9);
+  }
+}
+
+// ─── REVIEW ──────────────────────────────────────────────────────────────────
+function buildReview() {
+  const g = id => document.getElementById(id).value;
+  const set = (id, val) => document.getElementById(id).textContent = val || '—';
+
+  set('rv-email', st.email);
+  set('rv-hs', st.hsFound ? '✅ Existing record found' : '🔔 New contact — will be created');
+  set('rv-name', g('fullName'));
+  set('rv-nation', g('nation'));
+  set('rv-dob', `${g('dobYear')}-${String(g('dobMonth')).padStart(2,'0')}-${String(g('dobDay')).padStart(2,'0')}`);
+  set('rv-sex', g('sex'));
+  set('rv-addr', `${g('address')}, ${g('zip')}`);
+  const discIds = ['taekwondo','changemookwan','hapkido','kumdo','taijiquan'];
+  const discSel = discIds.filter(d => document.getElementById('disc-'+d).checked).map(d => document.getElementById('disc-'+d).value);
+  set('rv-disciplines', discSel.length ? discSel.join(', ') : 'None selected');
+
+  const dn = document.getElementById('rv-sec-d');
+  if (st.certs.d) {
+    dn.style.display = '';
+    set('rv-applied', g('appliedRank') ? g('appliedRank') + sfx(+g('appliedRank')) + ' Dan' : '—');
+    set('rv-present', g('presentRankD') || 'None');
+    set('rv-rankno', g('rankNoD') || '—');
+    set('rv-phone-d', g('phoneD') || '—');
+    set('rv-dojang', g('dojangD') || '—');
+  } else dn.style.display = 'none';
+
+  const ins = document.getElementById('rv-sec-i');
+  if (st.certs.i) {
+    ins.style.display = '';
+    const lv = parseInt(g('instrLevel')) || 0;
+    set('rv-instr-level', lv ? iLbl[lv] : '—');
+    set('rv-instr-dan', g('currentDanI') ? g('currentDanI') + sfx(+g('currentDanI')) + ' Dan' : '—');
+    set('rv-instr-tel', [g('telI'), g('mobileI')].filter(Boolean).join(' / ') || '—');
+    set('rv-gym-i', g('gymI') || '—');
+  } else ins.style.display = 'none';
+
+  const sc = document.getElementById('rv-sec-s');
+  if (st.certs.s) {
+    sc.style.display = '';
+    set('rv-gym-name', g('gymName') || '—');
+    set('rv-master', g('masterName') || '—');
+    set('rv-gym-addr', g('gymAddress') || '—');
+    set('rv-gym-tel', g('gymTel') || '—');
+  } else sc.style.display = 'none';
+
+  set('rv-sig-a', st.sigApplicant ? '✅ Signed' : '⏳ Pending');
+  set('rv-sig-admin', st.sigAdmin ? '✅ Signed' : '⏳ Pending (can sign after)');
+  set('rv-photo', st.photoB64 ? '✅ Uploaded' : st.hsFound ? 'On file in HubSpot' : '—');
+
+  // Fee summary
+  const danRank = parseInt(g('appliedRank')) || 0;
+  const danFee = danPrc[danRank] || 0;
+  document.getElementById('rv-fee-d').style.display = st.certs.d ? '' : 'none';
+  document.getElementById('rv-fee-i').style.display = st.certs.i ? '' : 'none';
+  document.getElementById('rv-fee-s').style.display = st.certs.s ? '' : 'none';
+  if (st.certs.d) set('rv-fee-d-amt', danRank ? `$${danFee} (${danRank}${sfx(danRank)} Dan)` : '—');
+  set('rv-total', `$${calcTotal()}`);
+
+  const allDocs = [
+    ...st.docs.dan.map(f => f.name),
+    ...st.docs.instr.map(f => f.name),
+    ...st.docs.charter.map(f => f.name)
+  ];
+  set('rv-docs', allDocs.length ? allDocs.join(', ') : 'None uploaded');
+}
+
+// ─── SUBMISSION & PERSISTENCE ────────────────────────────────────────────────
+function genRef() {
+  return 'WHMAF-' + Date.now().toString(36).toUpperCase().slice(-6);
+}
+
+function submitApp() {
+  const ref = genRef();
+  const g = id => document.getElementById(id).value;
+  const record = {
+    ref, submitted: new Date().toISOString(),
+    expires: new Date(Date.now() + 5 * 365.25 * 24 * 3600 * 1000).toISOString(),
+    email: st.email, hsFound: st.hsFound,
+    personal: {
+      name: g('fullName'), nation: g('nation'), address: g('address'),
+      zip: g('zip'), sex: g('sex'),
+      dob: `${g('dobYear')}-${g('dobMonth')}-${g('dobDay')}`,
+      disciplines: ['taekwondo','changemookwan','hapkido','kumdo','taijiquan']
+        .filter(d => document.getElementById('disc-'+d).checked)
+        .map(d => document.getElementById('disc-'+d).value)
+    },
+    certs: { ...st.certs },
+    dan: st.certs.d ? {
+      appliedRank: g('appliedRank'), presentRank: g('presentRankD'),
+      rankNo: g('rankNoD'), issueYear: g('issueYearD'), issueMD: g('issueMD'),
+      phone: g('phoneD'), dojang: g('dojangD'), recommended: g('recommendedD')
+    } : null,
+    instructor: st.certs.i ? {
+      level: g('instrLevel'), currentDan: g('currentDanI'),
+      rankNo: g('rankNoI'), issueYear: g('issueYearI'), issueMD: g('issueMDI'),
+      tel: g('telI'), mobile: g('mobileI'), gym: g('gymI'), recommended: g('recommendedI')
+    } : null,
+    charter: st.certs.s ? {
+      gymName: g('gymName'), master: g('masterName'),
+      gymAddress: g('gymAddress'), gymTel: g('gymTel')
+    } : null,
+    photoUploaded: !!st.photoB64,
+    docCounts: { dan: st.docs.dan.length, instr: st.docs.instr.length, charter: st.docs.charter.length },
+    sigApplicant: !!st.sigApplicant, sigAdmin: !!st.sigAdmin,
+  };
+
+  // Persist to IndexedDB (5-year storage)
+  saveToIDB(record);
+  document.getElementById('refBadge').textContent = ref;
+  loadSavedApps();
+  goTo(10);
+}
+
+// IndexedDB persistence
+let db;
+const IDB_NAME = 'whmaf_apps', IDB_VER = 1, IDB_STORE = 'applications';
+
+function openIDB() {
+  return new Promise((res, rej) => {
+    if (db) { res(db); return; }
+    const req = indexedDB.open(IDB_NAME, IDB_VER);
+    req.onupgradeneeded = e => {
+      const d = e.target.result;
+      if (!d.objectStoreNames.contains(IDB_STORE)) {
+        d.createObjectStore(IDB_STORE, { keyPath: 'ref' });
+      }
+    };
+    req.onsuccess = e => { db = e.target.result; res(db); };
+    req.onerror = () => rej(req.error);
+  });
+}
+
+async function saveToIDB(record) {
+  const d = await openIDB();
+  d.transaction(IDB_STORE, 'readwrite').objectStore(IDB_STORE).put(record);
+}
+
+async function loadSavedApps() {
+  const d = await openIDB();
+  const req = d.transaction(IDB_STORE, 'readonly').objectStore(IDB_STORE).getAll();
+  req.onsuccess = () => {
+    const apps = req.result;
+    const wrap = document.getElementById('savedApps');
+    const list = document.getElementById('appList');
+    if (!apps.length) { wrap.classList.add('hide'); return; }
+    wrap.classList.remove('hide');
+    list.innerHTML = apps.reverse().map(a => `
+      <div class="review-row">
+        <span class="review-lbl" style="font-family:monospace;font-size:12px">${a.ref}</span>
+        <span class="review-val" style="font-size:12px">${a.personal.name} · ${new Date(a.submitted).toLocaleDateString()} · ${[a.certs.d && 'Dan', a.certs.i && 'Instructor', a.certs.s && 'Charter'].filter(Boolean).join(', ')}</span>
+      </div>
+    `).join('');
+  };
+}
+
+function printSummary() { window.print(); }
+function newApp() { location.reload(); }
+
+// ─── INIT ─────────────────────────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', () => {
+  initSig('sigApplicant');
+  initSig('sigAdmin');
+  // Check for saved apps on confirmation screen (if revisiting)
+});
+</script>
+</body>
+</html>
