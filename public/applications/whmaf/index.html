@@ -289,9 +289,7 @@ canvas.sig-canvas{background:#fff;border-radius:8px;display:block;width:100%;tou
       <label>Disciplines (select all that apply)</label>
       <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px 16px;margin-top:8px">
         <label style="display:flex;align-items:center;gap:6px;font-size:13px;color:var(--text);font-weight:400;cursor:pointer">
-          <input type="checkbox" id="disc-taekwondo" value="Taekwondo" style="width:auto;flex-shrink:0;accent-color:var(--red)"> Taekwondo</label>
-        <label style="display:flex;align-items:center;gap:6px;font-size:13px;color:var(--text);font-weight:400;cursor:pointer">
-          <input type="checkbox" id="disc-changemookwan" value="Changemookwan" style="width:auto;flex-shrink:0;accent-color:var(--red)"> Changemookwan</label>
+          <input type="checkbox" id="disc-tkd-cmk" value="Taekwondo Changmookwan" style="width:auto;flex-shrink:0;accent-color:var(--red)"> Taekwondo Changmookwan</label>
         <label style="display:flex;align-items:center;gap:6px;font-size:13px;color:var(--text);font-weight:400;cursor:pointer">
           <input type="checkbox" id="disc-hapkido" value="Hapkido" style="width:auto;flex-shrink:0;accent-color:var(--red)"> Hapkido</label>
         <label style="display:flex;align-items:center;gap:6px;font-size:13px;color:var(--text);font-weight:400;cursor:pointer">
@@ -1093,7 +1091,7 @@ function buildReview() {
   set('rv-dob', `${g('dobYear')}-${String(g('dobMonth')).padStart(2,'0')}-${String(g('dobDay')).padStart(2,'0')}`);
   set('rv-sex', g('sex'));
   set('rv-addr', [g('address'), g('city'), g('state'), g('zip'), g('nation')].filter(Boolean).join(', '));
-  const discIds = ['taekwondo','changemookwan','hapkido','kumdo','taijiquan'];
+  const discIds = ['tkd-cmk','hapkido','kumdo','taijiquan'];
   const discSel = discIds.filter(d => document.getElementById('disc-'+d).checked).map(d => document.getElementById('disc-'+d).value);
   set('rv-disciplines', discSel.length ? discSel.join(', ') : 'None selected');
 
@@ -1158,7 +1156,7 @@ async function submitApp() {
 
   const ref = genRef();
   const g = id => document.getElementById(id).value;
-  const disciplines = ['taekwondo','changemookwan','hapkido','kumdo','taijiquan']
+  const disciplines = ['tkd-cmk','hapkido','kumdo','taijiquan']
     .filter(d => document.getElementById('disc-'+d).checked)
     .map(d => document.getElementById('disc-'+d).value);
 
