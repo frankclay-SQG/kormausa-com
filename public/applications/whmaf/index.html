@@ -534,7 +534,7 @@ canvas.sig-canvas{background:#fff;border-radius:8px;display:block;width:100%;tou
     <h2>Step 6 — Supporting Documents</h2>
     <div class="sub">Upload any existing certificates or documentation. All fields are optional — only upload what applies to your application.</div>
 
-    <div class="field">
+    <div id="doc-sec-d" class="field">
       <label>Existing Dan Certificates</label>
       <div class="doc-drop" id="dropDan">
         <input type="file" multiple accept=".pdf,.jpg,.jpeg,.png" onchange="addDocs(event,'dan')">
@@ -542,7 +542,7 @@ canvas.sig-canvas{background:#fff;border-radius:8px;display:block;width:100%;tou
       </div>
       <div class="doc-list" id="listDan"></div>
     </div>
-    <div class="field">
+    <div id="doc-sec-i" class="field">
       <label>Existing Instructor Certificates</label>
       <div class="doc-drop" id="dropInstr">
         <input type="file" multiple accept=".pdf,.jpg,.jpeg,.png" onchange="addDocs(event,'instr')">
@@ -550,7 +550,7 @@ canvas.sig-canvas{background:#fff;border-radius:8px;display:block;width:100%;tou
       </div>
       <div class="doc-list" id="listInstr"></div>
     </div>
-    <div class="field">
+    <div id="doc-sec-s" class="field">
       <label>Existing School Charters</label>
       <div class="doc-drop" id="dropCharter">
         <input type="file" multiple accept=".pdf,.jpg,.jpeg,.png" onchange="addDocs(event,'charter')">
@@ -731,6 +731,7 @@ function goTo(n) {
   document.querySelectorAll('.step-content').forEach(el => el.classList.add('hide'));
   document.getElementById('step' + n).classList.remove('hide');
   if (n === 9) buildReview();
+  if (n === 6) syncStep6Docs();
   if (n === 4) showCertSections();
   if (n === 2) setupPhotoField();
 
@@ -912,6 +913,13 @@ function validateStep3() {
 function showCertSections() {
   ['d', 'i', 's'].forEach(t => {
     const sec = document.getElementById('sec-' + t);
+    if (sec) sec.classList.toggle('hide', !st.certs[t]);
+  });
+}
+
+function syncStep6Docs() {
+  ['d', 'i', 's'].forEach(t => {
+    const sec = document.getElementById('doc-sec-' + t);
     if (sec) sec.classList.toggle('hide', !st.certs[t]);
   });
 }
