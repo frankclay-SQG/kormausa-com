@@ -285,19 +285,6 @@ canvas.sig-canvas{background:#fff;border-radius:8px;display:block;width:100%;tou
         <div class="err">Required</div>
       </div>
     </div>
-    <div class="field">
-      <label>Disciplines (select all that apply)</label>
-      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px 16px;margin-top:8px">
-        <label style="display:flex;align-items:center;gap:6px;font-size:13px;color:var(--text);font-weight:400;cursor:pointer">
-          <input type="checkbox" id="disc-tkd-cmk" value="Taekwondo Changmookwan" style="width:auto;flex-shrink:0;accent-color:var(--red)"> Taekwondo Changmookwan</label>
-        <label style="display:flex;align-items:center;gap:6px;font-size:13px;color:var(--text);font-weight:400;cursor:pointer">
-          <input type="checkbox" id="disc-hapkido" value="Kumdo" style="width:auto;flex-shrink:0;accent-color:var(--red)"> Kumdo</label>
-        <label style="display:flex;align-items:center;gap:6px;font-size:13px;color:var(--text);font-weight:400;cursor:pointer">
-          <input type="checkbox" id="disc-kumdo" value="Kumdo" style="width:auto;flex-shrink:0;accent-color:var(--red)"> Kumdo</label>
-        <label style="display:flex;align-items:center;gap:6px;font-size:13px;color:var(--text);font-weight:400;cursor:pointer">
-          <input type="checkbox" id="disc-taijiquan" value="Taijiquan" style="width:auto;flex-shrink:0;accent-color:var(--red)"> Taijiquan</label>
-      </div>
-    </div>
     <div class="field" id="photoField2" style="margin-top:4px">
       <label>Passport Photo <span id="photoReqStar" style="color:var(--red-light)">*</span></label>
       <div id="photoOnFileNote" class="info hide" style="margin-bottom:10px">
@@ -374,7 +361,7 @@ canvas.sig-canvas{background:#fff;border-radius:8px;display:block;width:100%;tou
       <div class="row2">
         <div class="field">
           <label>Applying for Rank (Dan) *</label>
-          <select id="appliedRank">
+          <select id="appliedRank" onchange="checkDanEligibility()">
             <option value="">— Select rank —</option>
             <option value="1">1st Dan</option><option value="2">2nd Dan</option><option value="3">3rd Dan</option>
             <option value="4">4th Dan</option><option value="5">5th Dan</option><option value="6">6th Dan</option>
@@ -399,14 +386,28 @@ canvas.sig-canvas{background:#fff;border-radius:8px;display:block;width:100%;tou
         </div>
         <div class="field">
           <label>Issue Year</label>
-          <input type="number" id="issueYearD" placeholder="2018">
+          <input type="number" id="issueYearD" placeholder="2018" onchange="checkDanEligibility()">
         </div>
         <div class="field">
           <label>Issue Month / Day</label>
           <input type="text" id="issueMD" placeholder="06 / 15">
         </div>
       </div>
-      <div class="row2">
+
+      <div id="danEligSection" style="display:none;margin-bottom:12px">
+        <div id="danAgeBadge"  style="margin-bottom:4px"></div>
+        <div id="danTimeBadge" style="margin-bottom:4px"></div>
+      </div>
+      <div class="field" style="margin-bottom:8px">
+        <label style="display:flex;align-items:center;gap:8px;font-size:12px;color:var(--text3);cursor:pointer">
+          <input type="checkbox" id="adminOverride" onchange="toggleAdminOverride()" style="width:auto;accent-color:var(--red)">
+          Admin Override &#8212; bypass age &amp; time-in-rank requirements
+        </label>
+        <div id="adminOverrideBadge" style="margin-top:6px;display:none">
+          <span class="rbadge" style="background:#1a0505;color:#f87171;border:.5px solid #7f1d1d">&#9888;&#65039; Admin override active &#8212; promotion requirements bypassed</span>
+        </div>
+      </div>
+            <div class="row2">
         <div class="field">
           <label>Phone Number</label>
           <input type="tel" id="phoneD" placeholder="+1 555-0100">
@@ -636,6 +637,7 @@ const st = {
   photoB64: null, photoName: null,
   docs: { dan: [], instr: [], charter: [] },
   sigApplicant: null, sigAdmin: null,
+  adminOverride: false,
 };
 
 const iMin = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9];
@@ -643,6 +645,22 @@ const iLbl = ['', 'Assistant Instructor', 'Instructor', 'Senior Instructor',
               'Class 3 Master', 'Class 2 Master', 'Class 1 Master', 'Class 1 Master',
               'Grand Master', 'Grand Master'];
 const sfx = n => n == 1 ? 'st' : n == 2 ? 'nd' : n == 3 ? 'rd' : 'th';
+// ─── DISCIPLINE (auto-set for this federation) ──────────────────────────────
+const DISC_AUTO = ['Kumdo'];
+
+// ─── PROMOTION RULES (WT Changmookwan HQ — applies to all federations) ──────
+const PROMO_RULES = [
+  null,
+  { minAge: 0,  minYears: 1 },  // 1st Dan
+  { minAge: 0,  minYears: 1 },  // 2nd Dan
+  { minAge: 0,  minYears: 2 },  // 3rd Dan
+  { minAge: 18, minYears: 3 },  // 4th Dan
+  { minAge: 22, minYears: 4 },  // 5th Dan
+  { minAge: 28, minYears: 5 },  // 6th Dan
+  { minAge: 34, minYears: 6 },  // 7th Dan
+  { minAge: 42, minYears: 8 },  // 8th Dan
+  { minAge: 51, minYears: 9 },  // 9th Dan
+];
 
 // Pricing: WKMAF list × 1.30 (base + 30%)
 const danPrc = [0, 91, 117, 156, 195, 390, 455, 585, 650, 780];
@@ -868,6 +886,66 @@ function checkInstrEligibility() {
   }
 }
 
+// ─── DAN PROMOTION ELIGIBILITY ───────────────────────────────────────────────
+function checkDanEligibility() {
+  const rank      = parseInt(document.getElementById('appliedRank')?.value  || '0') || 0;
+  const issueYear = parseInt(document.getElementById('issueYearD')?.value   || '0') || 0;
+  const dobYear   = parseInt(document.getElementById('dobYear')?.value      || '0') || 0;
+  const dobMonth  = parseInt(document.getElementById('dobMonth')?.value     || '0') || 0;
+  const dobDay    = parseInt(document.getElementById('dobDay')?.value       || '0') || 0;
+
+  const section   = document.getElementById('danEligSection');
+  const ageBadge  = document.getElementById('danAgeBadge');
+  const timeBadge = document.getElementById('danTimeBadge');
+  const ovrBadge  = document.getElementById('adminOverrideBadge');
+
+  if (!rank) { if (section) section.style.display = 'none'; return; }
+  if (section) section.style.display = '';
+
+  const rule     = PROMO_RULES[rank];
+  if (!rule) return;
+  const override = st.adminOverride;
+
+  // Age check
+  if (rule.minAge > 0 && dobYear) {
+    const today = new Date();
+    const dob   = new Date(dobYear, (dobMonth || 1) - 1, dobDay || 1);
+    const age   = Math.floor((today - dob) / (365.25 * 24 * 3600 * 1000));
+    const ok    = override || age >= rule.minAge;
+    ageBadge.innerHTML = ok
+      ? `<span class="rbadge ok">&#10003; Age OK &mdash; min ${rule.minAge}, applicant is ${age}</span>`
+      : `<span class="rbadge no">&#10007; Age not met &mdash; min ${rule.minAge}, applicant is ${age}</span>`;
+    ageBadge.style.display = '';
+  } else {
+    ageBadge.innerHTML = `<span class="rbadge ok">&#10003; No minimum age for ${rank}${sfx(rank)} Dan</span>`;
+    ageBadge.style.display = '';
+  }
+
+  // Time-in-rank check
+  if (rank > 1 && issueYear) {
+    const now        = new Date();
+    const yearsSince = (now - new Date(issueYear, 0, 1)) / (365.25 * 24 * 3600 * 1000);
+    const ok         = override || yearsSince >= rule.minYears;
+    timeBadge.innerHTML = ok
+      ? `<span class="rbadge ok">&#10003; Time OK &mdash; need ${rule.minYears} yr${rule.minYears > 1 ? 's' : ''}, ~${yearsSince.toFixed(1)} yrs elapsed</span>`
+      : `<span class="rbadge no">&#10007; Time not met &mdash; need ${rule.minYears} yr${rule.minYears > 1 ? 's' : ''}, only ~${yearsSince.toFixed(1)} yrs since current rank</span>`;
+    timeBadge.style.display = '';
+  } else if (rank === 1) {
+    timeBadge.innerHTML = `<span class="rbadge ok">&#10003; 1st Dan &mdash; no prior rank required</span>`;
+    timeBadge.style.display = '';
+  } else {
+    timeBadge.style.display = 'none';
+  }
+
+  if (ovrBadge) ovrBadge.style.display = override ? '' : 'none';
+}
+
+function toggleAdminOverride() {
+  st.adminOverride = document.getElementById('adminOverride').checked;
+  checkDanEligibility();
+}
+
+
 function validateStep4() {
   let ok = true;
   if (st.certs.d) {
@@ -1044,9 +1122,7 @@ async function startCheckout() {
 
   // First sync to HubSpot
   try {
-    const discSel = ['tkd-cmk','hapkido','kumdo','taijiquan']
-      .filter(id => document.getElementById('disc-' + id)?.checked)
-      .map(id => document.getElementById('disc-' + id).value);
+    const discSel = DISC_AUTO;
 
     await fetch('/api/wkmaf/submit', {
       method: 'POST',
@@ -1099,9 +1175,7 @@ function buildReview() {
   set('rv-dob', `${g('dobYear')}-${String(g('dobMonth')).padStart(2,'0')}-${String(g('dobDay')).padStart(2,'0')}`);
   set('rv-sex', g('sex'));
   set('rv-addr', [g('address'), g('city'), g('state'), g('zip'), g('nation')].filter(Boolean).join(', '));
-  const discIds = ['tkd-cmk','hapkido','kumdo','taijiquan'];
-  const discSel = discIds.filter(d => document.getElementById('disc-'+d).checked).map(d => document.getElementById('disc-'+d).value);
-  set('rv-disciplines', discSel.length ? discSel.join(', ') : 'None selected');
+  set('rv-disciplines', DISC_AUTO.join(', '));
 
   const dn = document.getElementById('rv-sec-d');
   if (st.certs.d) {
@@ -1164,9 +1238,7 @@ async function submitApp() {
 
   const ref = genRef();
   const g = id => document.getElementById(id).value;
-  const disciplines = ['tkd-cmk','hapkido','kumdo','taijiquan']
-    .filter(d => document.getElementById('disc-'+d).checked)
-    .map(d => document.getElementById('disc-'+d).value);
+  const disciplines = DISC_AUTO;
 
   const record = {
     ref, submitted: new Date().toISOString(),
