@@ -7,7 +7,8 @@ export const metadata: Metadata = {
   title: "Applications | KORMA-USA",
   description:
     "Apply for certification through World Taekwondo Changmookwan, World Hapkido Martial Arts Federation, or World Kumdo Martial Arts Federation.",
-  keywords: "Korean martial arts,Taekwondo Changmookwan,Hapkido,Kumdo,KORMA-USA,certification application",
+  keywords:
+    "Korean martial arts,Taekwondo Changmookwan,Hapkido,Kumdo,KORMA-USA,certification application",
 };
 
 const federations = [
@@ -19,8 +20,8 @@ const federations = [
     icon: "🥋",
     description:
       "Dan certification, instructor credentials, and school charters under the Changmookwan Taekwondo lineage.",
-    href: null, // coming soon
-    active: false,
+    href: "/applications/changmookwan/",
+    active: true,
   },
   {
     id: "whmaf",
@@ -41,8 +42,8 @@ const federations = [
     icon: "⚔️",
     description:
       "Dan certification, instructor credentials, and school charters under the Korean sword tradition.",
-    href: null, // coming soon
-    active: false,
+    href: "/applications/wkmaf/",
+    active: true,
   },
 ];
 
@@ -78,13 +79,6 @@ export default function ApplicationsPage() {
                   : "border-white/8 bg-[#0c0c0c] opacity-55 cursor-not-allowed",
               ].join(" ")}
             >
-              {/* Coming soon badge */}
-              {!fed.active && (
-                <span className="absolute top-4 right-4 text-[10px] tracking-widest uppercase font-semibold text-gray-500 border border-white/10 rounded-full px-3 py-1">
-                  Coming Soon
-                </span>
-              )}
-
               {/* Icon */}
               <div
                 className={[
