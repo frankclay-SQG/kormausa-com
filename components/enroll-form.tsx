@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Shield,
@@ -19,6 +19,7 @@ import {
   ArrowRight,
   Tag,
   X,
+  GraduationCap,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { DuplicateConfirmationDialog } from "@/components/duplicate-confirmation-dialog";
@@ -94,6 +95,17 @@ const PROGRAMS: Program[] = [
     price: 15000,
     priceLabel: "$150 / mo",
     type: "payment",
+    inquiryType: "regular_class",
+  },
+  {
+    id: "rva-homeschool",
+    Icon: GraduationCap,
+    label: "RVA Homeschool Program - Enrollment",
+    description:
+      "Daytime Korean martial arts classes for Richmond-area homeschool students. Fitness, focus, and respect, built around your school day.",
+    price: 0,
+    priceLabel: "Enrollment Request",
+    type: "quote",
     inquiryType: "regular_class",
   },
   {
@@ -217,6 +229,18 @@ export function EnrollForm() {
     form.email.includes("@") &&
     form.phone.trim().length > 7 &&
     form.dateOfBirth.trim().length > 0;
+
+  // Preselect a program from a link such as /enroll?program=rva-homeschool
+  useEffect(() => {
+    const requested = new URLSearchParams(window.location.search).get("program");
+    const match = PROGRAMS.find((p) => p.id === requested);
+    if (match) {
+      setSelectedProgram(match);
+      setStep(2);
+    }
+  }, []);
+
+  const isHomeschool = selectedProgram?.id === "rva-homeschool";
 
   function field(key: keyof typeof form, value: string) {
     setForm((f) => ({ ...f, [key]: value }));
@@ -395,8 +419,9 @@ export function EnrollForm() {
                 Request Received!
               </h2>
               <p className="text-white/55 max-w-md mb-8">
-                Thank you for your interest in our corporate seminar program.
-                We&apos;ll reach out within one business day with a custom proposal.
+                {isHomeschool
+                  ? "Thank you for enrolling in the RVA Homeschool Program. We'll reach out within one business day with the class schedule, location, and tuition details."
+                  : "Thank you for your interest in our corporate seminar program. We'll reach out within one business day with a custom proposal."}
               </p>
               <a
                 href="/"
@@ -916,7 +941,7 @@ export function EnrollForm() {
                   ) : (
                     <>
                       <MessageSquare className="h-4 w-4" />
-                      Request a Quote
+                      {isHomeschool ? "Submit Enrollment" : "Request a Quote"}
                     </>
                   )}
                 </button>

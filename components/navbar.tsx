@@ -13,6 +13,7 @@ const navLinks = [
     children: [
       { label: "Taekwondo Changmookwan", href: "/#taekwondo" },
       { label: "Hapkido Migukyongkwan", href: "/#hapkido" },
+      { label: "RVA Homeschoolers", href: "/#homeschool" },
       { label: "Self Defense", href: "/#seminars" },
       { label: "Kumdo", href: "/#kumdo" },
     ],
